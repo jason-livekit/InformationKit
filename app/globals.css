@@ -23,7 +23,6 @@
   --color-fg2: var(--fg2);
   --color-fg3: var(--fg3);
   --color-fg4: var(--fg4);
-  --color-fg5: var(--fg5);
   --color-fgAccent1: var(--fgAccent1);
   --color-fgAccent2: var(--fgAccent2);
   --color-fgSuccess: var(--fgSuccess);
@@ -110,7 +109,6 @@
   --fg2: #4D4D4D;
   --fg3: #636363;
   --fg4: #707070;
-  --fg5: #A4A4A2;
   --fgAccent1: #002CF2;
   --fgAccent2: #395CF9;
   --fgSuccess: #00753B;
@@ -124,11 +122,11 @@
   --separatorModerate: #FBDFB1;
   --separatorSerious1: #FFCDC7;
   --separatorSerious2: #FFA9A0;
-  --chart1: oklch(0.646 0.222 41.116);
-  --chart2: oklch(0.6 0.118 184.704);
-  --chart3: oklch(0.398 0.07 227.392);
-  --chart4: oklch(0.828 0.189 84.429);
-  --chart5: oklch(0.769 0.188 70.08);
+  --chart1: #002CF2;
+  --chart2: #BA1FF9;
+  --chart3: #F97A1F;
+  --chart4: #DC85FF;
+  --chart5: #009E4F;
   --chart6: #1FD5F9;
   --chart7: #DBC906;
   --chart8: #FA4C39;
@@ -190,7 +188,6 @@
   --fg2: #B2B2B2;
   --fg3: #999999;
   --fg4: #666666;
-  --fg5: #555555;
   --fgAccent1: #1FD5F9;
   --fgAccent2: #15889F;
   --fgSuccess: #23DE6B;
@@ -204,11 +201,11 @@
   --separatorModerate: #3F2208;
   --separatorSerious1: #421510;
   --separatorSerious2: #791B11;
-  --chart1: oklch(0.488 0.243 264.376);
-  --chart2: oklch(0.696 0.17 162.48);
-  --chart3: oklch(0.769 0.188 70.08);
-  --chart4: oklch(0.627 0.265 303.9);
-  --chart5: oklch(0.645 0.246 16.439);
+  --chart1: #1FD5F9;
+  --chart2: #BA1FF9;
+  --chart3: #F97A1F;
+  --chart4: #DC85FF;
+  --chart5: #009E4F;
   --chart6: #395CF9;
   --chart7: #F9E71F;
   --chart8: #FA4C39;

@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
+    "prebuild": "pnpm icons:generate",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
@@ -47,18 +48,19 @@
     "framer-motion": "^12.23.22",
     "input-otp": "^1.4.2",
     "lucide-react": "^0.539.0",
-    "next": "15.4.6",
+    "next": "15.4.8",
     "next-themes": "^0.4.6",
-    "react": "19.1.0",
+    "react": "19.1.2",
     "react-day-picker": "^9.8.1",
-    "react-dom": "19.1.0",
+    "react-dom": "19.1.2",
     "react-hook-form": "^7.62.0",
     "react-resizable-panels": "^3.0.4",
     "recharts": "2.15.4",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "vaul": "^1.1.2",
-    "zod": "^4.0.17"
+    "zod": "^4.0.17",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

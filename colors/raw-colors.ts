@@ -1,5 +1,8 @@
 export type RawColorName = keyof typeof rawColors;
+
 export const rawColors = {
+  white: '#fff',
+  black: '#000',
   lk: {
     100: '#CDF6FE',
     200: '#A5EEFD',
@@ -22,13 +25,26 @@ export const rawColors = {
     800: '#012A32',
     900: '#051518',
   },
-  gray: {
-    100: '#F9F9F6',
-    200: '#E7E7E5',
-    300: '#CECECB',
-    400: '#A4A4A2',
-    500: '#787878',
-    600: '#303030',
+  // light mode
+  'gray-light': {
+    100: '#FDFDFC',
+    200: '#EFEFEC',
+    300: '#E2E2DF',
+    400: '#DBDBD8',
+    500: '#BDBDBB',
+    600: '#707070',
+    700: '#636363',
+    800: '#4D4D4D',
+    900: '#3B3B3B',
+  },
+  // dark mode
+  'gray-dark': {
+    100: '#CCCCCC',
+    200: '#B2B2B2',
+    300: '#999999',
+    400: '#666666',
+    500: '#30302F',
+    600: '#202020',
     700: '#1F1F1F',
     800: '#131313',
     900: '#070707',
@@ -55,7 +71,6 @@ export const rawColors = {
     800: '#6D2F03',
     900: '#321501',
   },
-
   green: {
     100: '#D1FADF',
     200: '#B8EFD1',
@@ -109,7 +124,7 @@ export const rawColors = {
     600: '#0A259F',
     700: '#0F1F66',
     800: '#0C1640',
-    900: '#091417',
+    900: '#090C17',
   },
   lime: {
     100: '#E5FECD',
