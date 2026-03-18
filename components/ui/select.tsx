@@ -1,11 +1,11 @@
-"use client"
+'use client';
 
-import * as React from "react"
-import * as SelectPrimitive from "@radix-ui/react-select"
-import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from 'react';
+import * as SelectPrimitive from '@radix-ui/react-select';
+import { CheckIcon, ChevronIcon, ChevronTopSmallIcon } from '@/icons/react';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
 
 const selectConfig = {
   variants: {
@@ -23,22 +23,23 @@ const selectConfig = {
     variant: 'primary',
     size: 'sm',
   },
-} as const
+} as const;
 
 const selectTriggerVariants = cva(
   [
-    'group relative inline-flex items-center justify-between gap-1 whitespace-nowrap px-2 py-2 placeholder:text-fg3 disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
-    'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fgAccent1 focus-visible:ring-offset-2 focus-visible:ring-offset-bg1 focus-visible:invalid:ring-fgSerious1',
+    'placeholder:text-fg3 group relative inline-flex items-center justify-between gap-1 px-2 py-2 whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50 [&>span]:line-clamp-1',
+    'focus-visible:ring-fgAccent1 focus-visible:ring-offset-bg1 focus-visible:invalid:ring-fgSerious1 focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:outline-hidden',
     'rounded font-sans transition-all',
     'disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
   ],
   selectConfig,
-)
+);
 
-const SelectContext = React.createContext<VariantProps<typeof selectTriggerVariants>>({})
+const SelectContext = React.createContext<VariantProps<typeof selectTriggerVariants>>({});
 
 interface SelectRootProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>,
+  extends
+    React.ComponentPropsWithoutRef<typeof SelectPrimitive.Root>,
     VariantProps<typeof selectTriggerVariants> {}
 
 const Select: React.FC<SelectRootProps> = ({
@@ -49,39 +50,45 @@ const Select: React.FC<SelectRootProps> = ({
   <SelectContext.Provider value={{ variant, size }}>
     <SelectPrimitive.Root {...props} />
   </SelectContext.Provider>
-)
+);
 
-const SelectGroup = SelectPrimitive.Group
+const SelectGroup = SelectPrimitive.Group;
 
-const SelectValue = SelectPrimitive.Value
+const SelectValue = SelectPrimitive.Value;
 
 interface SelectTriggerProps
-  extends React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
-    VariantProps<typeof selectTriggerVariants> {}
+  extends
+    React.ComponentPropsWithoutRef<typeof SelectPrimitive.Trigger>,
+    VariantProps<typeof selectTriggerVariants> {
+  /* Show a chevron next to the selected value. Defaults to `true`. */
+  withIcon?: boolean;
+}
 
 const SelectTrigger = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Trigger>,
   SelectTriggerProps
->(({ className, variant, size, children, ...props }, ref) => {
-  const { size: ctxSize, variant: ctxVariant } = React.useContext(SelectContext)
+>(({ className, variant, size, children, withIcon = true, ...props }, ref) => {
+  const { size: ctxSize, variant: ctxVariant } = React.useContext(SelectContext);
   return (
     <SelectPrimitive.Trigger
       ref={ref}
       className={cn(
         selectTriggerVariants({ variant: variant ?? ctxVariant, size: size ?? ctxSize }),
-        'text-fg1 transition-colors hover:bg-bg3 data-[state=open]:border-separator2 data-[state=open]:bg-bg3',
+        'text-fg1 hover:bg-bg3 data-[state=open]:border-separator2 data-[state=open]:bg-bg3 transition-colors',
         className,
       )}
       {...props}
     >
       {children}
-      <SelectPrimitive.Icon asChild>
-        <ChevronDownIcon className="w-5 text-fg3 transition-transform group-data-[state=open]:rotate-180" />
-      </SelectPrimitive.Icon>
+      {withIcon && (
+        <SelectPrimitive.Icon asChild>
+          <ChevronIcon className="text-fg3 w-5 transition-transform group-data-[state=open]:rotate-180" />
+        </SelectPrimitive.Icon>
+      )}
     </SelectPrimitive.Trigger>
-  )
-})
-SelectTrigger.displayName = SelectPrimitive.Trigger.displayName
+  );
+});
+SelectTrigger.displayName = SelectPrimitive.Trigger.displayName;
 
 const SelectScrollUpButton = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.ScrollUpButton>,
@@ -92,10 +99,10 @@ const SelectScrollUpButton = React.forwardRef<
     className={cn('flex cursor-default items-center justify-center py-1', className)}
     {...props}
   >
-    <ChevronUpIcon className="size-4" />
+    <ChevronTopSmallIcon />
   </SelectPrimitive.ScrollUpButton>
-))
-SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName
+));
+SelectScrollUpButton.displayName = SelectPrimitive.ScrollUpButton.displayName;
 
 const SelectScrollDownButton = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.ScrollDownButton>,
@@ -106,23 +113,23 @@ const SelectScrollDownButton = React.forwardRef<
     className={cn('flex cursor-default items-center justify-center py-1', className)}
     {...props}
   >
-    <ChevronDownIcon className="size-4" />
+    <ChevronIcon />
   </SelectPrimitive.ScrollDownButton>
-))
-SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName
+));
+SelectScrollDownButton.displayName = SelectPrimitive.ScrollDownButton.displayName;
 
 const SelectContent = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Content>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Content>
 >(({ className, children, position = 'popper', ...props }, ref) => {
-  const { size } = React.useContext(SelectContext)
+  const { size } = React.useContext(SelectContext);
   return (
     <SelectPrimitive.Portal>
       <SelectPrimitive.Content
         ref={ref}
         data-size={size}
         className={cn(
-          'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-96 min-w-[8rem] overflow-hidden rounded border border-separator1 bg-bg2 text-fg1 drop-shadow-md',
+          'border-separator1 bg-bg2 text-fg1 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 relative z-50 max-h-96 min-w-32 overflow-hidden rounded border drop-shadow-md',
           size === 'sm' && 'text-xs',
           size === 'md' && 'text-sm',
           position === 'popper' &&
@@ -137,7 +144,7 @@ const SelectContent = React.forwardRef<
           className={cn(
             'p-1',
             position === 'popper' &&
-              'h-[var(--radix-select-trigger-height)] w-full min-w-[var(--radix-select-trigger-width)]',
+              'h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)',
           )}
         >
           {children}
@@ -145,9 +152,9 @@ const SelectContent = React.forwardRef<
         <SelectScrollDownButton />
       </SelectPrimitive.Content>
     </SelectPrimitive.Portal>
-  )
-})
-SelectContent.displayName = SelectPrimitive.Content.displayName
+  );
+});
+SelectContent.displayName = SelectPrimitive.Content.displayName;
 
 const SelectLabel = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Label>,
@@ -156,38 +163,38 @@ const SelectLabel = React.forwardRef<
   <SelectPrimitive.Label
     ref={ref}
     className={cn(
-      'px-2 py-1.5 font-mono text-xxs uppercase leading-none tracking-wide text-fg3',
+      'text-xxs text-fg3 px-2 py-1.5 font-mono leading-none tracking-wide uppercase',
       className,
     )}
     {...props}
   />
-))
-SelectLabel.displayName = SelectPrimitive.Label.displayName
+));
+SelectLabel.displayName = SelectPrimitive.Label.displayName;
 
 const SelectItem = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Item>,
   React.ComponentPropsWithoutRef<typeof SelectPrimitive.Item> & {
-    description?: string
+    description?: string;
   }
 >(({ className, children, description, ...props }, ref) => (
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-default select-none flex-col justify-center rounded py-1.5 pl-2 pr-8 text-fg1 outline-none focus:bg-bg3 data-[disabled]:pointer-events-none data-[state=checked]:text-fg0 data-[disabled]:opacity-50',
+      'text-fg1 focus:bg-bg3 data-[state=checked]:text-fg0 relative flex w-full cursor-default flex-col justify-center rounded py-1.5 pr-8 pl-2 text-inherit outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50',
       className,
     )}
     {...props}
   >
     <span className="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
       <SelectPrimitive.ItemIndicator>
-        <CheckIcon className="h-4 w-4 text-fgAccent1" />
+        <CheckIcon className="text-fgAccent1 h-4 w-4" />
       </SelectPrimitive.ItemIndicator>
     </span>
     <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
-    {description && <div className="text-xs text-fg3">{description}</div>}
+    {description && <div className="text-fg3 text-xs">{description}</div>}
   </SelectPrimitive.Item>
-))
-SelectItem.displayName = SelectPrimitive.Item.displayName
+));
+SelectItem.displayName = SelectPrimitive.Item.displayName;
 
 const SelectSeparator = React.forwardRef<
   React.ComponentRef<typeof SelectPrimitive.Separator>,
@@ -198,8 +205,8 @@ const SelectSeparator = React.forwardRef<
     className={cn('bg-muted -mx-1 my-1 h-px', className)}
     {...props}
   />
-))
-SelectSeparator.displayName = SelectPrimitive.Separator.displayName
+));
+SelectSeparator.displayName = SelectPrimitive.Separator.displayName;
 
 export {
   Select,
@@ -213,4 +220,4 @@ export {
   SelectSeparator,
   SelectTrigger,
   SelectValue,
-}
+};

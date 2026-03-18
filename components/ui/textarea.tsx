@@ -1,26 +1,34 @@
-import * as React from "react"
+import * as React from 'react';
 
-import { cn } from "@/lib/utils"
+import { PASSWORD_MANAGER_IGNORE_ATTRS } from '@/lib/form';
+import { cn } from '@/lib/utils';
 
-export type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>
+export interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
+  size?: 'small' | 'medium';
+  hasBorder?: boolean;
+}
 
 const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
-  ({ className, ...props }, ref) => {
+  ({ className, rows, size = 'small', hasBorder = true, ...props }, ref) => {
     return (
       <textarea
-        data-slot="textarea"
+        {...PASSWORD_MANAGER_IGNORE_ATTRS}
         className={cn(
-          "text-sm text-fg2",
-          "flex min-h-24 w-full rounded border border-border-intense bg-bg1 px-3 py-2 transition-colors placeholder:text-fg4 disabled:cursor-not-allowed disabled:opacity-50",
-          "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:invalid:ring-red-300",
-          className
+          'text-fg1',
+          'bg-bg1 placeholder:text-fg4 flex w-full rounded px-3 py-2 transition-colors file:border-0 file:bg-transparent disabled:cursor-not-allowed disabled:opacity-50',
+          'focus-visible:ring-fgAccent1 focus-visible:ring-offset-bg1 focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:outline-hidden focus-visible:invalid:ring-red-300',
+          'read-only:bg-bg2 read-only:accent-separator1',
+          size === 'small' ? 'text-xs' : 'text-sm',
+          hasBorder ? 'border-separator2 border' : '',
+          className,
         )}
+        rows={rows ?? 4}
         ref={ref}
         {...props}
       />
-    )
-  }
-)
-Textarea.displayName = "Textarea"
+    );
+  },
+);
+Textarea.displayName = 'Textarea';
 
-export { Textarea }
+export { Textarea };

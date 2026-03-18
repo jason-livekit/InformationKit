@@ -1,53 +1,32 @@
-"use client"
+import * as React from 'react';
 
-import * as React from "react"
-import * as AvatarPrimitive from "@radix-ui/react-avatar"
+import { People2Icon } from '@/icons/react';
 
-import { cn } from "@/lib/utils"
+type AvatarProps = {
+  firstInitial?: string;
+  size?: 'sm' | 'md' | 'lg';
+};
 
-function Avatar({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Root>) {
+const DIMENSIONS: Record<NonNullable<AvatarProps['size']>, string> = {
+  sm: 'min-w-5 w-5 min-h-5 h-5',
+  md: 'min-w-8 w-8 min-h-8 h-8',
+  lg: 'min-w-12 w-12 min-h-12 h-12',
+};
+
+const FONT_SIZES: Record<NonNullable<AvatarProps['size']>, string> = {
+  sm: 'text-xs',
+  md: 'text-lg',
+  lg: 'text-2xl',
+};
+
+export function Avatar(props: AvatarProps): React.ReactElement {
+  const { firstInitial, size = 'md' } = props;
+
   return (
-    <AvatarPrimitive.Root
-      data-slot="avatar"
-      className={cn(
-        "relative flex size-8 shrink-0 overflow-hidden rounded-full",
-        className
-      )}
-      {...props}
-    />
-  )
+    <div
+      className={`${DIMENSIONS[size]} ${FONT_SIZES[size]} bg-bgAccent1 text-fgAccent1 flex items-center justify-center rounded px-1.5 py-1 font-mono`}
+    >
+      {firstInitial?.[0] ?? <People2Icon width="1em" height="1em" />}
+    </div>
+  );
 }
-
-function AvatarImage({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Image>) {
-  return (
-    <AvatarPrimitive.Image
-      data-slot="avatar-image"
-      className={cn("aspect-square size-full", className)}
-      {...props}
-    />
-  )
-}
-
-function AvatarFallback({
-  className,
-  ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
-  return (
-    <AvatarPrimitive.Fallback
-      data-slot="avatar-fallback"
-      className={cn(
-        "bg-muted flex size-full items-center justify-center rounded-full",
-        className
-      )}
-      {...props}
-    />
-  )
-}
-
-export { Avatar, AvatarImage, AvatarFallback }

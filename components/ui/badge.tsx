@@ -1,46 +1,72 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
+
+export const sizes = {
+  large: 'px-1.5 py-0.5 text-xs ',
+  medium: 'px-1 py-0.5 text-xxs',
+} as const;
+
+export const variants = {
+  muted: 'bg-bg3 text-fg3',
+  accent: 'bg-bgAccent2 text-fgAccent1',
+  success: 'bg-bgSuccess2 text-fgSuccess',
+  warning: 'bg-bgModerate2 text-fgModerate',
+  error: 'text-fg bg-bgSerious2 text-fgSerious1',
+} as const;
 
 const badgeVariants = cva(
-  "inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 [&>svg]:size-3 gap-1 [&>svg]:pointer-events-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive transition-[color,box-shadow] overflow-hidden",
+  'pointer-events-none inline-flex h-min w-fit items-center justify-center gap-1 rounded font-mono font-semibold tracking-wider whitespace-nowrap uppercase select-none',
   {
     variants: {
-      variant: {
-        default:
-          "border-transparent bg-primary text-primary-foreground [a&]:hover:bg-primary/90",
-        secondary:
-          "border-transparent bg-secondary text-secondary-foreground [a&]:hover:bg-secondary/90",
-        destructive:
-          "border-transparent bg-destructive text-white [a&]:hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
-      },
+      size: sizes,
+      variant: variants,
     },
     defaultVariants: {
-      variant: "default",
+      size: 'medium',
+      variant: 'muted',
     },
-  }
-)
+  },
+);
 
-function Badge({
-  className,
-  variant,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"span"> &
-  VariantProps<typeof badgeVariants> & { asChild?: boolean }) {
-  const Comp = asChild ? Slot : "span"
-
-  return (
-    <Comp
-      data-slot="badge"
-      className={cn(badgeVariants({ variant }), className)}
-      {...props}
-    />
-  )
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {
+  leftIcon?: React.ReactElement<{ className?: string }>;
+  rightIcon?: React.ReactElement<{ className?: string }>;
 }
 
-export { Badge, badgeVariants }
+function sizeIcon(variant: VariantProps<typeof badgeVariants>['size']) {
+  return ((size) => {
+    switch (size) {
+      case 'medium':
+        return 'w-2.5 h-2.5';
+      case undefined:
+      case null:
+      case 'large':
+        return 'w-3 h-3';
+    }
+  })(variant);
+}
+
+const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
+  ({ className, variant, size, leftIcon, rightIcon, ...props }, ref) => {
+    const iconSize = sizeIcon(size);
+    return (
+      <div className={cn(badgeVariants({ variant, size, className }))} ref={ref} {...props}>
+        {leftIcon &&
+          React.cloneElement(leftIcon, {
+            className: cn(iconSize, leftIcon.props?.className),
+          })}
+        {props.children}
+        {rightIcon &&
+          React.cloneElement(rightIcon, {
+            className: cn(iconSize, rightIcon.props?.className),
+          })}
+      </div>
+    );
+  },
+);
+Badge.displayName = 'Badge';
+
+export { Badge };

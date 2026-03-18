@@ -1,27 +1,30 @@
-import * as React from "react"
+import * as React from 'react';
 
-import { cn } from "@/lib/utils"
+import { PASSWORD_MANAGER_IGNORE_ATTRS } from '@/lib/form';
+import { cn } from '@/lib/utils';
 
-export type InputProps = React.InputHTMLAttributes<HTMLInputElement>
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {}
 
 const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, type, ...props }, ref) => {
     return (
       <input
+        {...PASSWORD_MANAGER_IGNORE_ATTRS}
         type={type}
-        data-slot="input"
         className={cn(
-          'text-sm text-fg2 file:font-medium',
-          'flex h-8 w-full rounded border border-separator2 bg-bg1 px-3 py-1 transition-colors file:border-0 file:bg-transparent file:text-sm placeholder:text-fg4 disabled:cursor-not-allowed disabled:opacity-50',
-          'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-fgAccent1 focus-visible:ring-offset-2 focus-visible:ring-offset-bg1 focus-visible:invalid:ring-red-300',
+          'text-fg2 text-sm file:font-medium',
+          'border-separator2 bg-bg1 placeholder:text-fg4 flex h-8 w-full rounded border px-3 py-1 transition-colors file:border-0 file:bg-transparent file:text-sm',
+          'accent-fgAccent1 focus-visible:ring-fgAccent1 focus-visible:ring-offset-bg1 focus-visible:ring-1 focus-visible:ring-offset-2 focus-visible:outline-hidden focus-visible:invalid:ring-red-300',
+          'read-only:bg-bg2 read-only:accent-separator1',
+          'disabled:border-separator1 disabled:text-fg4 disabled:cursor-not-allowed',
           className,
         )}
         ref={ref}
         {...props}
       />
-    )
-  }
-)
-Input.displayName = "Input"
+    );
+  },
+);
+Input.displayName = 'Input';
 
-export { Input }
+export { Input };

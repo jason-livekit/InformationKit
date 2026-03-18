@@ -1,59 +1,77 @@
-"use client"
+import * as React from 'react';
+import * as TabsPrimitive from '@radix-ui/react-tabs';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-import * as React from "react"
-import * as TabsPrimitive from "@radix-ui/react-tabs"
+import { cn } from '@/lib/utils';
 
-import { cn } from "@/lib/utils"
+const tabsListVariants = cva('group/list inline-flex w-full items-start justify-start gap-6', {
+  variants: {
+    variant: {
+      default: '',
+      segmented: [
+        'grid auto-cols-fr grid-flow-col gap-0',
+        '[&_button]:bg-bg1 [&_button]:text-fg3 [&_button]:px-3 [&_button]:text-xs [&_button]:leading-7 [&_button]:font-semibold [&_button+button]:-ml-px',
+        '[&_button]:border-separator1 [&_button]:justify-center [&_button]:border [&_button]:outline-hidden [&_button:first-child]:rounded-l [&_button:last-child]:rounded-r',
+        '[&_[data-state=active]]:border-separatorAccent [&_[data-state=active]]:bg-bgAccent1 [&_[data-state=active]]:text-fgAccent1 **:data-[state=active]:z-10',
+        '[&_button]:ring-fgAccent1 [&_button]:ring-offset-bg0 [&_button]:ring-offset-1 [&_button:focus-visible]:ring-1',
+      ],
+      underline:
+        'border-separator1 [&_[data-state=active]]:border-b-fgAccent1 border-b [&_button]:border-b [&_button]:border-b-transparent [&_button]:pb-2',
+    },
+  },
+  defaultVariants: {
+    variant: 'default',
+  },
+});
 
-const Tabs = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Root>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.Root
-    ref={ref}
-    className={cn("rounded-md border border-separator1 bg-bg1", className)}
-    {...props}
-  />
-))
-Tabs.displayName = "Tabs"
+export interface TabsListProps
+  extends
+    React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>,
+    VariantProps<typeof tabsListVariants> {}
 
-const TabsList = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.List>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.List
-    ref={ref}
-    className={cn("border-b border-separator1 text-fg4", className)}
-    {...props}
-  />
-))
-TabsList.displayName = "TabsList"
+const TabsList = React.forwardRef<HTMLDivElement, TabsListProps>(
+  ({ className, variant = 'default', ...props }, ref) => {
+    return (
+      <TabsPrimitive.List
+        className={cn(tabsListVariants({ variant }), className)}
+        data-variant={variant}
+        ref={ref}
+        {...props}
+      />
+    );
+  },
+);
 
 const TabsTrigger = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Trigger>,
+  HTMLButtonElement,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.Trigger
-    ref={ref}
-    className={cn(
-      "relative -bottom-px border-b-2 border-transparent px-4 py-3 font-mono text-xs font-semibold uppercase tracking-widest transition-colors hover:border-fgAccent1/50 hover:text-fgAccent2 data-[state=active]:border-b-fgAccent1 data-[state=active]:text-fgAccent1 disabled:pointer-events-none disabled:opacity-50",
-      className
-    )}
-    {...props}
-  />
-))
-TabsTrigger.displayName = "TabsTrigger"
+>(({ className, ...props }, ref) => {
+  return (
+    <TabsPrimitive.Trigger
+      className={cn(
+        'group/v-underline text-fg3 relative inline-flex items-center justify-start gap-1 leading-tight font-medium transition-colors',
+        'data-[state=active]:text-fg1',
+        className,
+      )}
+      ref={ref}
+      {...props}
+    />
+  );
+});
 
-const TabsContent = React.forwardRef<
-  React.ElementRef<typeof TabsPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
->(({ className, ...props }, ref) => (
-  <TabsPrimitive.Content
-    ref={ref}
-    className={cn("outline-none", className)}
-    {...props}
-  />
-))
-TabsContent.displayName = "TabsContent"
+const TabsContent = TabsPrimitive.Content;
 
-export { Tabs, TabsList, TabsTrigger, TabsContent }
+export interface TabsProps extends React.ComponentPropsWithRef<typeof TabsPrimitive.Root> {}
+
+const Tabs = React.forwardRef<HTMLDivElement, TabsProps>(({ className, ...props }, ref) => {
+  return (
+    <TabsPrimitive.Root
+      className={cn('inline-flex w-full flex-col items-start justify-start gap-2', className)}
+      ref={ref}
+      {...props}
+    />
+  );
+});
+Tabs.displayName = 'Tabs';
+
+export { Tabs, TabsList, TabsTrigger, TabsContent };

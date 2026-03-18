@@ -1,21 +1,19 @@
-"use client"
+import * as React from 'react';
 
-import * as React from "react"
-
-import { cn } from "@/lib/utils"
+import { cn } from '@/lib/utils';
 
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
   ({ className, ...props }, ref) => (
     <div className="relative w-full">
       <table
         ref={ref}
-        className={cn("w-full caption-bottom rounded text-sm text-fg2", className)}
+        className={cn('text-fg2 w-full caption-bottom rounded text-sm', className)}
         {...props}
       />
     </div>
-  )
-)
-Table.displayName = "Table"
+  ),
+);
+Table.displayName = 'Table';
 
 const TableHeader = React.forwardRef<
   HTMLTableSectionElement,
@@ -24,21 +22,21 @@ const TableHeader = React.forwardRef<
   <thead
     ref={ref}
     className={cn(
-      "bg-bg2 text-sm font-semibold text-fg3 [&_tr]:border-b [&_tr]:border-separator1",
-      className
+      'bg-bg2 text-fg3 [&_tr]:border-separator1 text-sm font-semibold [&_tr]:border-b',
+      className,
     )}
     {...props}
   />
-))
-TableHeader.displayName = "TableHeader"
+));
+TableHeader.displayName = 'TableHeader';
 
 const TableBody = React.forwardRef<
   HTMLTableSectionElement,
   React.HTMLAttributes<HTMLTableSectionElement>
 >(({ className, ...props }, ref) => (
-  <tbody ref={ref} className={cn("[&_tr:last-child]:border-0", className)} {...props} />
-))
-TableBody.displayName = "TableBody"
+  <tbody ref={ref} className={cn('[&_tr:last-child]:border-0', className)} {...props} />
+));
+TableBody.displayName = 'TableBody';
 
 const TableFooter = React.forwardRef<
   HTMLTableSectionElement,
@@ -46,25 +44,25 @@ const TableFooter = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <tfoot
     ref={ref}
-    className={cn("border-t border-separator1 bg-bg2 [&>tr]:last:border-b-0", className)}
+    className={cn('border-separator1 bg-bg2 border-t last:[&>tr]:border-b-0', className)}
     {...props}
   />
-))
-TableFooter.displayName = "TableFooter"
+));
+TableFooter.displayName = 'TableFooter';
 
 const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTMLTableRowElement>>(
   ({ className, ...props }, ref) => (
     <tr
       ref={ref}
       className={cn(
-        "border-b border-separator1 transition-colors data-[state=selected]:bg-bg2",
-        className
+        'border-separator1 data-[state=selected]:bg-bg2 border-b transition-colors',
+        className,
       )}
       {...props}
     />
-  )
-)
-TableRow.displayName = "TableRow"
+  ),
+);
+TableRow.displayName = 'TableRow';
 
 const TableHead = React.forwardRef<
   HTMLTableCellElement,
@@ -73,13 +71,13 @@ const TableHead = React.forwardRef<
   <th
     ref={ref}
     className={cn(
-      "h-8 px-4 text-left align-middle text-sm font-semibold text-fg3 [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className
+      'text-fg3 text-xxs h-7 px-4 text-left align-middle font-mono font-semibold tracking-wider uppercase [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px]',
+      className,
     )}
     {...props}
   />
-))
-TableHead.displayName = "TableHead"
+));
+TableHead.displayName = 'TableHead';
 
 const TableCell = React.forwardRef<
   HTMLTableCellElement,
@@ -88,29 +86,20 @@ const TableCell = React.forwardRef<
   <td
     ref={ref}
     className={cn(
-      "whitespace-nowrap p-2 align-middle [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-      className
+      'px-4 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 *:[[role=checkbox]]:translate-y-[2px]',
+      className,
     )}
     {...props}
   />
-))
-TableCell.displayName = "TableCell"
+));
+TableCell.displayName = 'TableCell';
 
 const TableCaption = React.forwardRef<
   HTMLTableCaptionElement,
   React.HTMLAttributes<HTMLTableCaptionElement>
 >(({ className, ...props }, ref) => (
-  <caption ref={ref} className={cn("mt-4 text-sm text-fg4", className)} {...props} />
-))
-TableCaption.displayName = "TableCaption"
+  <caption ref={ref} className={cn('text-fg4 mt-4 text-sm', className)} {...props} />
+));
+TableCaption.displayName = 'TableCaption';
 
-export {
-  Table,
-  TableHeader,
-  TableBody,
-  TableFooter,
-  TableHead,
-  TableRow,
-  TableCell,
-  TableCaption,
-}
+export { Table, TableBody, TableCaption, TableCell, TableFooter, TableHead, TableHeader, TableRow };

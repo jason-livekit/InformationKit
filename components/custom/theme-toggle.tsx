@@ -4,7 +4,7 @@ import { useTheme } from "next-themes";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Moon, Sun, Monitor } from "lucide-react";
+import { MoonSolidIcon, SunSolidIcon, StudioDisplaySolidIcon } from "@/icons/react";
 import { useSidebar } from "@/components/ui/sidebar";
 import { useEffect, useState } from "react";
 
@@ -27,16 +27,16 @@ export function ThemeToggle() {
     const getThemeIcon = () => {
       if (!mounted) {
         // Show a neutral icon during SSR/hydration
-        return <Monitor className="h-4 w-4" />;
+        return <StudioDisplaySolidIcon className="h-4 w-4" />;
       }
       
       switch (activeTheme) {
         case 'light':
-          return <Sun className="h-4 w-4" />;
+          return <SunSolidIcon className="h-4 w-4" />;
         case 'dark':
-          return <Moon className="h-4 w-4" />;
+          return <MoonSolidIcon className="h-4 w-4" />;
         default:
-          return <Monitor className="h-4 w-4" />;
+          return <StudioDisplaySolidIcon className="h-4 w-4" />;
       }
     };
 
@@ -68,7 +68,7 @@ export function ThemeToggle() {
                   aria-label="Switch to light theme"
                   data-active={theme === 'light'}
                 >
-                  <Sun className="mr-2 h-4 w-4" />
+                  <SunSolidIcon className="mr-2 h-4 w-4" />
                   Light
                 </Button>
                 <Button
@@ -78,7 +78,7 @@ export function ThemeToggle() {
                   aria-label="Switch to dark theme"
                   data-active={theme === 'dark'}
                 >
-                  <Moon className="mr-2 h-4 w-4" />
+                  <MoonSolidIcon className="mr-2 h-4 w-4" />
                   Dark
                 </Button>
                 <Button
@@ -88,7 +88,7 @@ export function ThemeToggle() {
                   aria-label="Use system theme preference"
                   data-active={theme === 'system'}
                 >
-                  <Monitor className="mr-2 h-4 w-4" />
+                  <StudioDisplaySolidIcon className="mr-2 h-4 w-4" />
                   System
                 </Button>
               </div>

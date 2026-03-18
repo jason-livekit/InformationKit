@@ -1,167 +1,106 @@
-"use client"
+import * as React from 'react';
+import * as _Form from '@radix-ui/react-form';
 
-import * as React from "react"
-import * as LabelPrimitive from "@radix-ui/react-label"
-import { Slot } from "@radix-ui/react-slot"
-import {
-  Controller,
-  FormProvider,
-  useFormContext,
-  useFormState,
-  type ControllerProps,
-  type FieldPath,
-  type FieldValues,
-} from "react-hook-form"
+import { cn } from '@/lib/utils';
 
-import { cn } from "@/lib/utils"
-import { Label } from "@/components/ui/label"
-
-const Form = FormProvider
-
-type FormFieldContextValue<
-  TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
-> = {
-  name: TName
-}
-
-const FormFieldContext = React.createContext<FormFieldContextValue>(
-  {} as FormFieldContextValue
-)
-
-const FormField = <
-  TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
->({
-  ...props
-}: ControllerProps<TFieldValues, TName>) => {
+/** @see {@link https://www.radix-ui.com/primitives/docs/components/form#root} */
+const Form = React.forwardRef<
+  React.ComponentRef<typeof _Form.Root>,
+  React.ComponentPropsWithoutRef<typeof _Form.Root>
+>(({ className, children, ...props }, ref) => {
   return (
-    <FormFieldContext.Provider value={{ name: props.name }}>
-      <Controller {...props} />
-    </FormFieldContext.Provider>
-  )
-}
+    <_Form.Root className={cn('flex flex-col gap-4', className)} ref={ref} {...props}>
+      {children}
+    </_Form.Root>
+  );
+});
 
-const useFormField = () => {
-  const fieldContext = React.useContext(FormFieldContext)
-  const itemContext = React.useContext(FormItemContext)
-  const { getFieldState } = useFormContext()
-  const formState = useFormState({ name: fieldContext.name })
-  const fieldState = getFieldState(fieldContext.name, formState)
-
-  if (!fieldContext) {
-    throw new Error("useFormField should be used within <FormField>")
-  }
-
-  const { id } = itemContext
-
-  return {
-    id,
-    name: fieldContext.name,
-    formItemId: `${id}-form-item`,
-    formDescriptionId: `${id}-form-item-description`,
-    formMessageId: `${id}-form-item-message`,
-    ...fieldState,
-  }
-}
-
-type FormItemContextValue = {
-  id: string
-}
-
-const FormItemContext = React.createContext<FormItemContextValue>(
-  {} as FormItemContextValue
-)
-
-function FormItem({ className, ...props }: React.ComponentProps<"div">) {
-  const id = React.useId()
-
+/** @see {@link https://www.radix-ui.com/primitives/docs/components/form#label} */
+const FormField = React.forwardRef<
+  React.ComponentRef<typeof _Form.Field>,
+  React.ComponentPropsWithoutRef<typeof _Form.Field>
+>(({ className, children, ...props }, ref) => {
   return (
-    <FormItemContext.Provider value={{ id }}>
-      <div
-        data-slot="form-item"
-        className={cn("grid gap-2", className)}
-        {...props}
-      />
-    </FormItemContext.Provider>
-  )
-}
+    <_Form.Field className={cn('flex flex-col gap-2', className)} ref={ref} {...props}>
+      {children}
+    </_Form.Field>
+  );
+});
 
-function FormLabel({
-  className,
-  ...props
-}: React.ComponentProps<typeof LabelPrimitive.Root>) {
-  const { error, formItemId } = useFormField()
-
+/** @see {@link https://www.radix-ui.com/primitives/docs/components/form#label} */
+const FormLabel = React.forwardRef<
+  React.ComponentRef<typeof _Form.Label>,
+  React.ComponentPropsWithoutRef<typeof _Form.Label>
+>(({ className, children, ...props }, ref) => {
   return (
-    <Label
-      data-slot="form-label"
-      data-error={!!error}
-      className={cn("data-[error=true]:text-destructive", className)}
-      htmlFor={formItemId}
-      {...props}
-    />
-  )
-}
+    <_Form.Label className={cn('text-fg1 text-xs font-bold', className)} ref={ref} {...props}>
+      {children}
+    </_Form.Label>
+  );
+});
 
-function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
-  const { error, formItemId, formDescriptionId, formMessageId } = useFormField()
-
+/** @see {@link https://www.radix-ui.com/primitives/docs/components/form#control} */
+const FormControl = React.forwardRef<
+  React.ComponentRef<typeof _Form.Control>,
+  React.ComponentPropsWithoutRef<typeof _Form.Control>
+>(({ className, children, ...props }, ref) => {
   return (
-    <Slot
-      data-slot="form-control"
-      id={formItemId}
-      aria-describedby={
-        !error
-          ? `${formDescriptionId}`
-          : `${formDescriptionId} ${formMessageId}`
-      }
-      aria-invalid={!!error}
-      {...props}
-    />
-  )
-}
+    <_Form.Control className={cn('', className)} ref={ref} {...props}>
+      {children}
+    </_Form.Control>
+  );
+});
 
-function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
-  const { formDescriptionId } = useFormField()
-
+/** @see {@link https://www.radix-ui.com/primitives/docs/components/form#message} */
+const FormMessage = React.forwardRef<
+  React.ComponentRef<typeof _Form.Message>,
+  React.ComponentPropsWithoutRef<typeof _Form.Message>
+>(({ className, children, ...props }, ref) => {
   return (
-    <p
-      data-slot="form-description"
-      id={formDescriptionId}
-      className={cn("text-muted-foreground text-sm", className)}
-      {...props}
-    />
-  )
-}
-
-function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
-  const { error, formMessageId } = useFormField()
-  const body = error ? String(error?.message ?? "") : props.children
-
-  if (!body) {
-    return null
-  }
-
-  return (
-    <p
-      data-slot="form-message"
-      id={formMessageId}
-      className={cn("text-destructive text-sm", className)}
+    <_Form.Message
+      className={cn('text-xs text-red-400 peer-invalid:text-red-400', className)}
+      ref={ref}
       {...props}
     >
-      {body}
-    </p>
-  )
-}
+      {children}
+    </_Form.Message>
+  );
+});
+
+const DefaultFormMessages = [
+  <FormMessage key="valueMissing" match="valueMissing" />,
+  <FormMessage key="badInput" match="badInput" />,
+  <FormMessage key="tooLong" match="tooLong" />,
+  <FormMessage key="tooShort" match="tooShort" />,
+  <FormMessage key="typeMismatch" match="typeMismatch" />,
+  <FormMessage key="stepMismatch" match="stepMismatch" />,
+  <FormMessage key="rangeOverflow" match="rangeOverflow" />,
+  <FormMessage key="rangeUnderflow" match="rangeUnderflow" />,
+  <FormMessage key="patternMismatch" match="patternMismatch" />,
+];
+
+/** @see */
+const FormValidityState = _Form.ValidityState;
+
+/** @see {@link https://www.radix-ui.com/primitives/docs/components/form#message} */
+const FormSubmit = React.forwardRef<
+  React.ComponentRef<typeof _Form.Submit>,
+  React.ComponentPropsWithoutRef<typeof _Form.Submit>
+>(({ className, children, ...props }, ref) => {
+  return (
+    <_Form.Submit className={cn('', className)} ref={ref} {...props}>
+      {children}
+    </_Form.Submit>
+  );
+});
 
 export {
-  useFormField,
+  DefaultFormMessages,
   Form,
-  FormItem,
-  FormLabel,
   FormControl,
-  FormDescription,
-  FormMessage,
   FormField,
-}
+  FormLabel,
+  FormMessage,
+  FormSubmit,
+  FormValidityState,
+};
