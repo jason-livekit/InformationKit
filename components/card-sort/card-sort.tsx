@@ -418,7 +418,7 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
 
   if (!mounted) {
     return (
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
         <Header
           hasChanges={false}
           submitting={false}
@@ -444,7 +444,7 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
       onDragEnd={onDragEnd}
       modifiers={[restrictToWindowEdges]}
     >
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
         <Header
           hasChanges={hasChanges}
           submitting={submitting}
@@ -463,7 +463,7 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
             />
             <div
               className="border-separator1 bg-bg1 relative flex flex-col rounded-lg border"
-              style={{ maxHeight: 'min(760px, calc(100svh - 7rem))' }}
+              style={{ maxHeight: 'min(760px, calc(100svh - 11rem))' }}
             >
               <div
                 ref={columnRef}
@@ -584,6 +584,16 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
         </div>
       </div>
 
+      <StickyActionBar
+        hasChanges={hasChanges}
+        submitting={submitting}
+        notUsefulCount={state.notUsefulCount}
+        groupCount={state.groups.length}
+        onSubmit={onSubmit}
+        onShowResults={onShowResults}
+        onResetDraft={onResetDraft}
+      />
+
       <DragOverlay>
         {activeCard ? (
           <SortableCard
@@ -595,6 +605,77 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
         ) : null}
       </DragOverlay>
     </DndContext>
+  );
+}
+
+function StickyActionBar({
+  hasChanges,
+  submitting,
+  notUsefulCount,
+  groupCount,
+  onSubmit,
+  onShowResults,
+  onResetDraft,
+}: {
+  hasChanges: boolean;
+  submitting: boolean;
+  notUsefulCount: number;
+  groupCount: number;
+  onSubmit: () => void;
+  onShowResults: () => void;
+  onResetDraft: () => void;
+}) {
+  return (
+    <div className="pointer-events-none sticky bottom-0 left-0 right-0 z-40 mt-4 px-4 pb-4 sm:px-6 sm:pb-6">
+      <div className="pointer-events-auto mx-auto flex w-full max-w-7xl items-center justify-between gap-3 rounded-xl border border-separator1 bg-bg1/95 px-3 py-2.5 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur supports-[backdrop-filter]:bg-bg1/80">
+        <div className="hidden min-w-0 items-center gap-2 sm:flex">
+          <span className="text-fg3 text-xs">
+            {hasChanges ? (
+              <>
+                <span className="text-fg0 font-semibold">Unsubmitted changes</span>
+                <span className="text-fg4">
+                  {' · '}
+                  {groupCount} {groupCount === 1 ? 'group' : 'groups'}
+                  {' · '}
+                  {notUsefulCount} not useful
+                </span>
+              </>
+            ) : (
+              <span>Make any change to enable submit.</span>
+            )}
+          </span>
+        </div>
+        <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
+          {hasChanges && (
+            <Button
+              variant="ghost"
+              size="sm"
+              leftIcon={<ArrowUndoUpIcon />}
+              onClick={onResetDraft}
+            >
+              Reset
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<Chart5Icon />}
+            onClick={onShowResults}
+          >
+            Show results
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={<ArrowOutOfBoxIcon />}
+            disabled={!hasChanges || submitting}
+            onClick={onSubmit}
+          >
+            {submitting ? 'Submitting…' : 'Submit my sort'}
+          </Button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -628,35 +709,6 @@ function Header({
             a session view. Drag the cards to reorder them by importance, group related items, and
             mark anything you don&apos;t care about as not useful.
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          {hasChanges && (
-            <Button
-              variant="ghost"
-              size="sm"
-              leftIcon={<ArrowUndoUpIcon />}
-              onClick={onResetDraft}
-            >
-              Reset
-            </Button>
-          )}
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={<Chart5Icon />}
-            onClick={onShowResults}
-          >
-            Show results
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<ArrowOutOfBoxIcon />}
-            disabled={!hasChanges || submitting}
-            onClick={onSubmit}
-          >
-            {submitting ? 'Submitting…' : 'Submit my sort'}
-          </Button>
         </div>
       </div>
       <Instructions title="How to sort" icon={<CircleInfoIcon className="text-fgAccent1 h-4 w-4" />}>
