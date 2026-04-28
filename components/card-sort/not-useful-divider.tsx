@@ -6,6 +6,8 @@ import { cn } from '@/lib/bytes/utils';
 export interface NotUsefulDividerProps {
   /** Called continuously while the user drags the divider, with the new clientY position. */
   onDrag: (clientY: number) => void;
+  /** Called once when the user starts pressing down, before any drag movement. clientY = press y. */
+  onPressDown?: (clientY: number) => void;
   /** Called once when drag starts. */
   onDragStart?: () => void;
   /** Called once when drag ends. */
@@ -17,7 +19,12 @@ export interface NotUsefulDividerProps {
  *
  * Pointer events fire continuously while dragging; consumer maps clientY → split index.
  */
-export function NotUsefulDivider({ onDrag, onDragStart, onDragEnd }: NotUsefulDividerProps) {
+export function NotUsefulDivider({
+  onDrag,
+  onPressDown,
+  onDragStart,
+  onDragEnd,
+}: NotUsefulDividerProps) {
   const ref = React.useRef<HTMLDivElement>(null);
   const draggingRef = React.useRef(false);
 
@@ -27,8 +34,8 @@ export function NotUsefulDivider({ onDrag, onDragStart, onDragEnd }: NotUsefulDi
     e.stopPropagation();
     draggingRef.current = true;
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+    onPressDown?.(e.clientY);
     onDragStart?.();
-    onDrag(e.clientY);
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {

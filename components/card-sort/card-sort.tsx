@@ -80,9 +80,11 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [dividerPx, setDividerPx] = React.useState<number | null>(null);
   const columnRef = React.useRef<HTMLDivElement>(null);
+  const notUsefulRef = React.useRef<HTMLDivElement>(null);
   const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
+  const dragStartYRef = React.useRef<number>(0);
+  const dragStartNotUsefulCountRef = React.useRef<number>(0);
 
   React.useEffect(() => {
     const draft = loadDraft();
@@ -328,45 +330,24 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
     clearDraft();
   };
 
-  // Divider drag handling — translate clientY into a split index.
-  const measureSplitIndexAt = (clientY: number): number => {
-    const container = columnRef.current;
-    if (!container) return splitIndex;
-    const all = state.unsorted;
-    if (all.length === 0) return 0;
-    let nearestIdx = 0;
-    let nearestDist = Infinity;
-    for (let i = 0; i <= all.length; i++) {
-      let yMid: number;
-      if (i === all.length) {
-        const lastEl = cardRefs.current[all[i - 1]!];
-        if (!lastEl) continue;
-        const rect = lastEl.getBoundingClientRect();
-        yMid = rect.bottom;
-      } else {
-        const el = cardRefs.current[all[i]!];
-        if (!el) continue;
-        const rect = el.getBoundingClientRect();
-        yMid = rect.top;
-      }
-      const dist = Math.abs(yMid - clientY);
-      if (dist < nearestDist) {
-        nearestDist = dist;
-        nearestIdx = i;
-      }
-    }
-    return nearestIdx;
+  /**
+   * Divider drag → delta-based splitting. Each ~card-height of dy moves one card across the line.
+   * Negative dy (drag up) increases notUsefulCount; positive dy (drag down) decreases it.
+   */
+  const CARD_STEP_PX = 52;
+  const computeNewNotUsefulCount = (clientY: number): number => {
+    const dy = clientY - dragStartYRef.current;
+    const stepDelta = -Math.round(dy / CARD_STEP_PX);
+    const next = dragStartNotUsefulCountRef.current + stepDelta;
+    return Math.max(0, Math.min(state.unsorted.length, next));
   };
 
-  const onDividerDragStart = () => {
-    setDividerPx(null);
-  };
+  const onDividerDragStart = () => {};
 
   const onDividerDrag = (clientY: number) => {
-    setDividerPx(clientY);
-    const idx = measureSplitIndexAt(clientY);
+    if (dragStartYRef.current === 0) return;
+    const newNotUseful = computeNewNotUsefulCount(clientY);
     setState((prev) => {
-      const newNotUseful = Math.max(0, prev.unsorted.length - idx);
       if (newNotUseful === prev.notUsefulCount) return prev;
       setHasChanges(true);
       return { ...prev, notUsefulCount: newNotUseful };
@@ -374,7 +355,13 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
   };
 
   const onDividerDragEnd = () => {
-    setDividerPx(null);
+    dragStartYRef.current = 0;
+  };
+
+  // Capture initial y at the moment the user actually presses down via a custom dragStart:
+  const onDividerPressDown = (clientY: number) => {
+    dragStartYRef.current = clientY;
+    dragStartNotUsefulCountRef.current = state.notUsefulCount;
   };
 
   const activeCard: CardItem | null = activeId ? CARDS_BY_ID[activeId] ?? null : null;
@@ -445,75 +432,83 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
 
         <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
           {/* Center column with not-useful divider */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:sticky lg:top-[5rem] lg:self-start">
             <ColumnHeading
               title="Items to sort"
-              countLabel={`${state.unsorted.length} cards`}
+              countLabel={`${usefulIds.length} useful · ${state.notUsefulCount} not useful`}
             />
             <div
-              ref={columnRef}
-              className="border-separator1 bg-bg1 relative flex flex-col gap-2 rounded-lg border p-3"
+              className="border-separator1 bg-bg1 relative flex flex-col rounded-lg border"
+              style={{ maxHeight: 'min(760px, calc(100svh - 7rem))' }}
             >
-              <Column id={UNSORTED} cardIds={usefulIds}>
-                {usefulIds.map((id, idx) => (
-                  <div
-                    key={id}
-                    ref={(el) => {
-                      cardRefs.current[id] = el;
-                    }}
-                  >
-                    <SortableCard
-                      card={CARDS_BY_ID[id]!}
-                      order={idx + 1}
-                      tone="ok"
-                      containerId={UNSORTED}
-                    />
-                  </div>
-                ))}
-                {usefulIds.length === 0 && state.notUsefulCount > 0 && (
-                  <EmptyDropZone label="Drop cards here" />
-                )}
-              </Column>
+              <div
+                ref={columnRef}
+                className="flex flex-1 flex-col gap-2 overflow-y-auto p-3"
+              >
+                <Column id={UNSORTED} cardIds={usefulIds}>
+                  {usefulIds.map((id, idx) => (
+                    <div
+                      key={id}
+                      ref={(el) => {
+                        cardRefs.current[id] = el;
+                      }}
+                    >
+                      <SortableCard
+                        card={CARDS_BY_ID[id]!}
+                        order={idx + 1}
+                        tone="ok"
+                        containerId={UNSORTED}
+                      />
+                    </div>
+                  ))}
+                  {usefulIds.length === 0 && state.notUsefulCount > 0 && (
+                    <EmptyDropZone label="Drop cards here" />
+                  )}
+                </Column>
 
-              <NotUsefulDivider
-                onDragStart={onDividerDragStart}
-                onDrag={onDividerDrag}
-                onDragEnd={onDividerDragEnd}
-              />
-
-              <Column id={NOT_USEFUL} cardIds={notUsefulIds}>
-                {notUsefulIds.map((id) => (
-                  <div
-                    key={id}
-                    ref={(el) => {
-                      cardRefs.current[id] = el;
-                    }}
-                  >
-                    <SortableCard
-                      card={CARDS_BY_ID[id]!}
-                      order={null}
-                      tone="danger"
-                      containerId={NOT_USEFUL}
-                    />
-                  </div>
-                ))}
-                {notUsefulIds.length === 0 && (
-                  <NotUsefulHint />
-                )}
-              </Column>
-
-              {dividerPx !== null && (
-                <div className="text-fgSerious1 pointer-events-none absolute right-3 -translate-y-1/2 font-mono text-[10px] font-bold uppercase tracking-wider"
-                  style={{ top: dividerPx - (columnRef.current?.getBoundingClientRect().top ?? 0) }}
+              </div>
+              <div className="border-t-separator1 bg-bg1 relative flex flex-col gap-2 border-t px-3 pt-1 pb-3">
+                <NotUsefulDivider
+                  onPressDown={onDividerPressDown}
+                  onDragStart={onDividerDragStart}
+                  onDrag={onDividerDrag}
+                  onDragEnd={onDividerDragEnd}
+                />
+                <div
+                  className={cn(
+                    'flex flex-col gap-2',
+                    notUsefulIds.length > 0 && 'max-h-44 overflow-y-auto',
+                  )}
+                  ref={notUsefulRef}
                 >
-                  {state.notUsefulCount} not useful
+                  <Column id={NOT_USEFUL} cardIds={notUsefulIds}>
+                    {notUsefulIds.length === 0 ? (
+                      <NotUsefulHint />
+                    ) : (
+                      notUsefulIds.map((id) => (
+                        <div
+                          key={id}
+                          ref={(el) => {
+                            cardRefs.current[id] = el;
+                          }}
+                        >
+                          <SortableCard
+                            card={CARDS_BY_ID[id]!}
+                            order={null}
+                            tone="danger"
+                            containerId={NOT_USEFUL}
+                          />
+                        </div>
+                      ))
+                    )}
+                  </Column>
                 </div>
-              )}
+              </div>
             </div>
           </div>
 
           {/* Groups */}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 min-w-0">
             <ColumnHeading
               title="Groups"
               countLabel={`${state.groups.length} group${state.groups.length === 1 ? '' : 's'}`}
@@ -641,17 +636,23 @@ function Header({
         </div>
       </div>
       <Instructions title="How to sort" icon={<CircleInfoIcon className="text-fgAccent1 h-4 w-4" />}>
-        <InstructionsStep title="Reorder by importance">
-          Drag any card up or down. The number in the corner shows its current position.
+        <InstructionsStep title="Reorder by importance.">
+          <p className="text-fg2 mt-1.5 ml-5 font-normal">
+            Drag any card up or down. The number in the corner shows its current position.
+          </p>
         </InstructionsStep>
-        <InstructionsStep title="Group related items (optional)">
-          Click <span className="font-semibold">New group</span>, give it a name, then drag cards in.
-          You can rearrange within a group too.
+        <InstructionsStep title="Group related items (optional).">
+          <p className="text-fg2 mt-1.5 ml-5 font-normal">
+            Click <span className="font-semibold">New group</span>, give it a name, then drag cards
+            in. You can rearrange within a group too.
+          </p>
         </InstructionsStep>
-        <InstructionsStep title="Mark anything irrelevant as not useful">
-          Drag the red <span className="text-fgSerious1 font-semibold">Not useful</span> divider up to
-          push cards below the line. Their order doesn&apos;t matter — they&apos;re just out. Drag the
-          line back down to restore them.
+        <InstructionsStep title="Mark anything irrelevant as not useful.">
+          <p className="text-fg2 mt-1.5 ml-5 font-normal">
+            Drag the red <span className="text-fgSerious1 font-semibold">Not useful</span> divider
+            up to push cards below the line. Their order doesn&apos;t matter — they&apos;re just out.
+            Drag the line back down to restore them.
+          </p>
         </InstructionsStep>
       </Instructions>
       {error && (
