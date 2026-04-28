@@ -730,13 +730,13 @@ function Header({
 const INSTRUCTIONS_STORAGE_KEY = 'card-sort:instructions-open';
 
 function InstructionsAccordion() {
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(false);
   const [hydrated, setHydrated] = React.useState(false);
 
   React.useEffect(() => {
     try {
       const stored = window.localStorage.getItem(INSTRUCTIONS_STORAGE_KEY);
-      if (stored === 'closed') setOpen(false);
+      if (stored === 'open') setOpen(true);
     } catch {
       // ignore
     }
