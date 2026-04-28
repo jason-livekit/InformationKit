@@ -1,40 +1,45 @@
-# Prototyping Starter Kit
+# Card sort poll — Sessions UI
 
-This is a prototyping starter kit to help you vibe code experiences. 
+A tiny [Next.js](https://nextjs.org) card-sorting poll built on top of the LiveKit prototyping starter kit. Anyone with the link can sort cards, group them, mark some as not useful, and submit. The `/results` page aggregates every submission into a single shared dashboard.
 
-It is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
-
-## Getting Started
-
-First, run the development server:
+## Run locally
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+pnpm install
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Submissions are written to an in-memory list when no Redis is configured, so the app works locally with no extra setup. Two browser tabs hitting the same dev server will see each other's submissions immediately.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Deploy on Vercel (with cross-user sharing)
 
-## Learn More
+The poll only behaves like a true shared poll across users on the open internet when there's a shared backend. This project uses **Upstash Redis** via the Vercel Marketplace.
 
-To learn more about Next.js, take a look at the following resources:
+1. Import the repo on [vercel.com/new](https://vercel.com/new).
+2. After the first deploy, run from your project root:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+   ```bash
+   vercel link
+   vercel integration add upstash
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   (or use the Vercel dashboard → Integrations → Upstash). The Marketplace integration auto-provisions an Upstash database and injects `UPSTASH_REDIS_REST_URL` + `UPSTASH_REDIS_REST_TOKEN` into the project's environment variables.
+3. Redeploy. No code changes needed — `lib/card-sort/store.ts` calls `Redis.fromEnv()` and picks up the credentials automatically.
 
-## Deploy on Vercel
+You can confirm shared storage is wired up by visiting `/settings` — it'll show a green "Shared store connected" status when Redis is reachable, and an amber warning otherwise.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Reset
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+`/settings → Danger zone → Reset all submissions` clears the list for everyone. Anyone can do it — there's no auth on this poll by design.
+
+## Relevant files
+
+- `lib/card-sort/items.ts` — the deduplicated card catalog (every metric / value / event / configuration field across the source UI screenshots).
+- `lib/card-sort/store.ts` — Upstash Redis with in-memory fallback.
+- `components/card-sort/*` — the sort UI, draggable cards, "not useful" divider, group panels, and results dashboard.
+- `app/(app)/page.tsx` — the poll itself.
+- `app/(app)/results/page.tsx` — the aggregated dashboard.
+- `app/(app)/settings/page.tsx` — storage status, recent submissions, draft management, reset.
+- `app/api/submissions/*` — REST endpoints backing the store.
