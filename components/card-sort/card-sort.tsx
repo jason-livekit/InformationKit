@@ -18,14 +18,20 @@ import { restrictToWindowEdges } from '@dnd-kit/modifiers';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 
 import { Button } from '@/components/bytes/Button';
-import { Instructions, InstructionsStep } from '@/components/common/Instructions';
+import { InstructionsStep } from '@/components/common/Instructions';
 import { Badge } from '@/components/bytes/Badge';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/bytes/Collapsible';
 import {
   CirclePlusIcon,
   ArrowOutOfBoxIcon,
   Chart5Icon,
   ArrowUndoUpIcon,
   CircleInfoIcon,
+  ChevronDownSmallIcon,
 } from '@/icons/react';
 import { cn } from '@/lib/bytes/utils';
 import type { Card as CardItem, Group } from '@/lib/card-sort/types';
@@ -711,32 +717,102 @@ function Header({
           </p>
         </div>
       </div>
-      <Instructions title="How to sort" icon={<CircleInfoIcon className="text-fgAccent1 h-4 w-4" />}>
-        <InstructionsStep title="Reorder by importance.">
-          <p className="text-fg2 mt-1.5 ml-5 font-normal">
-            Drag any card up or down. The number in the corner shows its current position.
-          </p>
-        </InstructionsStep>
-        <InstructionsStep title="Group related items (optional).">
-          <p className="text-fg2 mt-1.5 ml-5 font-normal">
-            Click <span className="font-semibold">New group</span>, give it a name, then drag cards
-            in. You can rearrange within a group too.
-          </p>
-        </InstructionsStep>
-        <InstructionsStep title="Mark anything irrelevant as not useful.">
-          <p className="text-fg2 mt-1.5 ml-5 font-normal">
-            Drag the red <span className="text-fgSerious1 font-semibold">Not useful</span> divider
-            up to push cards below the line. Their order doesn&apos;t matter — they&apos;re just out.
-            Drag the line back down to restore them.
-          </p>
-        </InstructionsStep>
-      </Instructions>
+      <InstructionsAccordion />
       {error && (
         <div className="border-separatorSerious1 bg-bgSerious1 text-fgSerious1 rounded-md border px-3 py-2 text-sm">
           {error}
         </div>
       )}
     </div>
+  );
+}
+
+const INSTRUCTIONS_STORAGE_KEY = 'card-sort:instructions-open';
+
+function InstructionsAccordion() {
+  const [open, setOpen] = React.useState(true);
+  const [hydrated, setHydrated] = React.useState(false);
+
+  React.useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(INSTRUCTIONS_STORAGE_KEY);
+      if (stored === 'closed') setOpen(false);
+    } catch {
+      // ignore
+    }
+    setHydrated(true);
+  }, []);
+
+  React.useEffect(() => {
+    if (!hydrated) return;
+    try {
+      window.localStorage.setItem(INSTRUCTIONS_STORAGE_KEY, open ? 'open' : 'closed');
+    } catch {
+      // ignore
+    }
+  }, [open, hydrated]);
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen}>
+      <div className="border-separator1 overflow-hidden rounded border">
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              'group flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left',
+              'hover:bg-bg2 focus-visible:outline-fgAccent1 transition-colors focus-visible:outline-2',
+              open && 'border-b border-b-separator1',
+            )}
+            aria-label={open ? 'Collapse instructions' : 'Expand instructions'}
+          >
+            <span className="flex items-center gap-2">
+              <CircleInfoIcon className="text-fgAccent1 h-4 w-4 shrink-0" />
+              <span className="text-fg1 text-sm font-semibold">How to sort</span>
+              {!open && (
+                <span className="text-fg4 hidden text-xs sm:inline">
+                  · Reorder, group, and mark cards as not useful
+                </span>
+              )}
+            </span>
+            <ChevronDownSmallIcon
+              className={cn(
+                'text-fg3 h-4 w-4 shrink-0 transition-transform duration-150',
+                !open && '-rotate-90',
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent
+          className={cn(
+            'data-[state=open]:animate-in data-[state=closed]:animate-out',
+            'data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
+            'data-[state=closed]:slide-out-to-top-1 data-[state=open]:slide-in-from-top-1',
+            'overflow-hidden',
+          )}
+        >
+          <ol className="*:text-initial divide-separator1 text-fg1 list-inside list-decimal divide-y px-3 text-sm font-semibold *:font-normal">
+            <InstructionsStep title="Reorder by importance.">
+              <p className="text-fg2 mt-1.5 ml-5 font-normal">
+                Drag any card up or down. The number in the corner shows its current position.
+              </p>
+            </InstructionsStep>
+            <InstructionsStep title="Group related items (optional).">
+              <p className="text-fg2 mt-1.5 ml-5 font-normal">
+                Click <span className="font-semibold">New group</span>, give it a name, then drag
+                cards in. You can rearrange within a group too.
+              </p>
+            </InstructionsStep>
+            <InstructionsStep title="Mark anything irrelevant as not useful.">
+              <p className="text-fg2 mt-1.5 ml-5 font-normal">
+                Drag the red <span className="text-fgSerious1 font-semibold">Not useful</span>{' '}
+                divider up to push cards below the line. Their order doesn&apos;t matter —
+                they&apos;re just out. Drag the line back down to restore them.
+              </p>
+            </InstructionsStep>
+          </ol>
+        </CollapsibleContent>
+      </div>
+    </Collapsible>
   );
 }
 
