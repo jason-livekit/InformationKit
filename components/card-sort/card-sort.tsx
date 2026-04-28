@@ -75,11 +75,16 @@ function defaultState(): State {
 }
 
 export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
+  const [mounted, setMounted] = React.useState(false);
   const [state, setState] = React.useState<State>(defaultState);
   const [hasChanges, setHasChanges] = React.useState(false);
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    setMounted(true);
+  }, []);
   const columnRef = React.useRef<HTMLDivElement>(null);
   const notUsefulRef = React.useRef<HTMLDivElement>(null);
   const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
@@ -410,6 +415,25 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
       setSubmitting(false);
     }
   };
+
+  if (!mounted) {
+    return (
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 py-8">
+        <Header
+          hasChanges={false}
+          submitting={false}
+          error={null}
+          onSubmit={() => {}}
+          onShowResults={onShowResults}
+          onResetDraft={() => {}}
+        />
+        <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
+          <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
+          <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <DndContext

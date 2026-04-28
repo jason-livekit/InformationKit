@@ -14,7 +14,7 @@ export default async function ResultsPage({
 }: {
   searchParams: Promise<{ submitted?: string }>;
 }) {
-  const results = aggregate();
+  const results = await aggregate();
   const sp = await searchParams;
   const justSubmitted = sp.submitted === '1';
 

@@ -9,7 +9,7 @@ import { ClearDraftSection } from './clear-draft-section';
 export const dynamic = 'force-dynamic';
 
 export default async function SettingsPage() {
-  const results = aggregate();
+  const results = await aggregate();
   const recent = results.recentSubmissions.slice(0, 8);
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-6 py-8">

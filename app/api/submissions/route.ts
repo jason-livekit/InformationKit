@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function GET() {
-  return NextResponse.json(aggregate());
+  return NextResponse.json(await aggregate());
 }
 
 export async function POST(request: Request) {
@@ -23,8 +23,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid submission shape' }, { status: 400 });
   }
 
-  const submission = addSubmission(parsed);
-  return NextResponse.json({ submission, results: aggregate() });
+  const submission = await addSubmission(parsed);
+  return NextResponse.json({ submission, results: await aggregate() });
 }
 
 function parseSubmission(body: unknown): SubmissionInput | null {

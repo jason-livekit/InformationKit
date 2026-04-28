@@ -5,6 +5,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 export async function POST() {
-  resetSubmissions();
-  return NextResponse.json({ ok: true, results: aggregate() });
+  await resetSubmissions();
+  return NextResponse.json({ ok: true, results: await aggregate() });
 }

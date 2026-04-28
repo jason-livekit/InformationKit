@@ -1,39 +1,87 @@
 import 'server-only';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import type { AggregatedResults, Card, Submission, SubmissionInput } from './types';
 import { CARDS, CARDS_BY_ID } from './items';
 
 /**
- * Tiny in-memory store for card-sort submissions.
+ * Tiny submission store.
  *
- * Notes:
- * - State lives on `globalThis` so it survives Next.js HMR in dev.
- * - On Vercel, storage is per-instance / per-region. For a small team poll this is fine.
- *   When the team grows, swap the read/write helpers for Vercel KV or a database.
+ * Strategy:
+ * - In-memory state on `globalThis` so it survives Next.js HMR in dev.
+ * - Best-effort mirror to a JSON file (`/tmp/card-sort-submissions.json` on Vercel) so the
+ *   same warm instance recovers state across reloads.
+ *
+ * On Vercel, `/tmp` is per-instance and ephemeral. For a small team poll done in one sitting
+ * this is plenty; once the team grows or you need true cross-region consistency, swap
+ * `loadFromDisk` / `saveToDisk` for Vercel KV or another shared store.
  */
 
 interface SubmissionsStore {
   submissions: Submission[];
+  loaded: boolean;
 }
 
 const STORE_KEY = '__card_sort_store__';
+const FILE_PATH = path.join(
+  process.env.CARD_SORT_DATA_DIR || (process.env.VERCEL ? '/tmp' : '.next/cache'),
+  'card-sort-submissions.json',
+);
 
 function getStore(): SubmissionsStore {
   const g = globalThis as unknown as Record<string, SubmissionsStore | undefined>;
   if (!g[STORE_KEY]) {
-    g[STORE_KEY] = { submissions: [] };
+    g[STORE_KEY] = { submissions: [], loaded: false };
   }
   return g[STORE_KEY]!;
+}
+
+async function loadFromDisk(store: SubmissionsStore) {
+  if (store.loaded) return;
+  store.loaded = true;
+  try {
+    const raw = await fs.readFile(FILE_PATH, 'utf8');
+    const parsed = JSON.parse(raw) as { submissions?: unknown };
+    if (Array.isArray(parsed.submissions)) {
+      store.submissions = parsed.submissions as Submission[];
+    }
+  } catch {
+    // file may not exist yet — that's fine
+  }
+}
+
+async function saveToDisk(store: SubmissionsStore) {
+  try {
+    await fs.mkdir(path.dirname(FILE_PATH), { recursive: true });
+    await fs.writeFile(
+      FILE_PATH,
+      JSON.stringify({ submissions: store.submissions }, null, 2),
+      'utf8',
+    );
+  } catch {
+    // Disk persistence is best-effort. In-memory store still works.
+  }
+}
+
+async function ensureLoaded() {
+  const store = getStore();
+  if (!store.loaded) {
+    await loadFromDisk(store);
+  }
+  return store;
 }
 
 function makeId() {
   return `sub_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
-export function listSubmissions(): Submission[] {
-  return [...getStore().submissions];
+export async function listSubmissions(): Promise<Submission[]> {
+  const store = await ensureLoaded();
+  return [...store.submissions];
 }
 
-export function addSubmission(input: SubmissionInput): Submission {
+export async function addSubmission(input: SubmissionInput): Promise<Submission> {
+  const store = await ensureLoaded();
   const submission: Submission = {
     id: makeId(),
     createdAt: Date.now(),
@@ -45,12 +93,15 @@ export function addSubmission(input: SubmissionInput): Submission {
     unsorted: [...input.unsorted],
     notUseful: [...input.notUseful],
   };
-  getStore().submissions.push(submission);
+  store.submissions.push(submission);
+  void saveToDisk(store);
   return submission;
 }
 
-export function resetSubmissions(): void {
-  getStore().submissions = [];
+export async function resetSubmissions(): Promise<void> {
+  const store = await ensureLoaded();
+  store.submissions = [];
+  void saveToDisk(store);
 }
 
 /**
@@ -65,8 +116,8 @@ function normalizeGroupLabel(label: string): string {
     .trim();
 }
 
-export function aggregate(): AggregatedResults {
-  const submissions = listSubmissions();
+export async function aggregate(): Promise<AggregatedResults> {
+  const submissions = await listSubmissions();
   const cards: Card[] = CARDS;
 
   const notUsefulByCard: Record<string, number> = {};
