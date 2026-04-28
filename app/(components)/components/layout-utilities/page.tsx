@@ -1,9 +1,9 @@
 "use client";
 
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Spinner } from "@/components/ui/spinner";
-import { CopyToClipboard } from "@/components/ui/copy-to-clipboard";
+import { Separator } from "@/components/bytes/Separator";
+import { ScrollArea } from "@/components/bytes/ScrollArea";
+import { Spinner } from "@/components/bytes/Spinner";
+import { CopyToClipboard } from "@/components/bytes/CopyToClipboard";
 import { ExampleCard } from "../_shared/example-card";
 
 export default function LayoutUtilitiesPage() {
@@ -20,7 +20,7 @@ export default function LayoutUtilitiesPage() {
         id="separator"
         title="Separator"
         description="Visual divider between content sections."
-        importPath="@/components/ui/separator"
+        importPath="@/components/bytes/Separator"
       >
         <ExampleCard.Group label="Horizontal">
           <div>
@@ -44,7 +44,7 @@ export default function LayoutUtilitiesPage() {
         id="scroll-area"
         title="ScrollArea"
         description="Custom scrollable container with styled scrollbar."
-        importPath="@/components/ui/scroll-area"
+        importPath="@/components/bytes/ScrollArea"
       >
         <ScrollArea className="h-48 w-full rounded border border-separator1 p-4">
           <div className="space-y-3">
@@ -67,7 +67,7 @@ export default function LayoutUtilitiesPage() {
         id="spinner"
         title="Spinner"
         description="Loading indicator in different sizes."
-        importPath="@/components/ui/spinner"
+        importPath="@/components/bytes/Spinner"
       >
         <div className="flex items-end gap-4">
           <div className="text-center">
@@ -97,7 +97,7 @@ export default function LayoutUtilitiesPage() {
         id="copy-to-clipboard"
         title="CopyToClipboard"
         description="Button that copies text to clipboard with success feedback."
-        importPath="@/components/ui/copy-to-clipboard"
+        importPath="@/components/bytes/CopyToClipboard"
       >
         <div className="flex flex-wrap gap-3">
           <CopyToClipboard textToCopy="Hello, clipboard!" label="Copy text" />

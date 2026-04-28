@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { Public_Sans } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
-import { ThemeProvider } from "@/components/ui/theme-provider";
+import { ThemeProvider } from "@/components/bytes/ThemeProvider";
+import { AgentationDev } from "@/components/custom/agentation-dev";
 
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
@@ -37,6 +38,7 @@ export default function RootLayout({
           storageKey="prototyping-theme"
         >
           {children}
+          {process.env.NODE_ENV === "development" && <AgentationDev />}
         </ThemeProvider>
       </body>
     </html>

@@ -1,5 +1,4 @@
 export type RawColorName = keyof typeof rawColors;
-
 export const rawColors = {
   white: '#fff',
   black: '#000',
@@ -71,6 +70,7 @@ export const rawColors = {
     800: '#6D2F03',
     900: '#321501',
   },
+
   green: {
     100: '#D1FADF',
     200: '#B8EFD1',

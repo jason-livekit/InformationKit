@@ -1,11 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { 
-  BreadcrumbId,
-  BreadcrumbLink,
-  BreadcrumbPage 
-} from "@/components/ui/breadcrumb"
+import Link from "next/link"
+
+import { cn } from "@/lib/bytes/utils"
 
 export const PAGE_HEADER_PORTAL_ID = "page-header-portal"
 
@@ -14,6 +12,34 @@ export type BreadcrumbCrumb = {
   href?: string
   kind?: "default" | "id"
   isActive?: boolean
+}
+
+function BreadcrumbText({
+  children,
+  href,
+  kind = "default",
+  active = false,
+}: {
+  children: React.ReactNode
+  href?: string
+  kind?: "default" | "id"
+  active?: boolean
+}) {
+  const className = cn(
+    "rounded-sm text-sm transition-colors",
+    kind === "id" && "font-mono text-xs",
+    active ? "text-fg0" : "text-fg2 hover:text-fg0",
+  )
+
+  if (!href || active) {
+    return <span className={className}>{children}</span>
+  }
+
+  return (
+    <Link href={href} className={className}>
+      {children}
+    </Link>
+  )
 }
 
 interface ProjectPageHeaderProps {
@@ -86,13 +112,9 @@ export function ProjectPageHeader({
           {firstRowCrumbs.map((crumb, index) => (
             <React.Fragment key={`${crumb.label}-${index}`}>
               <span className="contents">
-                {crumb.kind === "id" ? (
-                  <BreadcrumbId href={crumb.href}>{crumb.label}</BreadcrumbId>
-                ) : (
-                  <BreadcrumbLink href={crumb.href ?? "#"}>
-                    {crumb.label}
-                  </BreadcrumbLink>
-                )}
+                <BreadcrumbText href={crumb.href} kind={crumb.kind}>
+                  {crumb.label}
+                </BreadcrumbText>
               </span>
               <span className="text-fg4">/</span>
             </React.Fragment>
@@ -101,11 +123,9 @@ export function ProjectPageHeader({
             <div style={{ display: l1_visibility, opacity: l1_opacity, transition: 'opacity 150ms ease-out' }} className="relative overflow-hidden">
               <div style={{ transform: l1_transform, transition: 'transform 150ms ease-out' }}>
                 <span className="contents">
-                  {lastCrumb.kind === "id" ? (
-                    <BreadcrumbId>{lastCrumb.label}</BreadcrumbId>
-                  ) : (
-                    <BreadcrumbPage>{lastCrumb.label}</BreadcrumbPage>
-                  )}
+                  <BreadcrumbText kind={lastCrumb.kind} active>
+                    {lastCrumb.label}
+                  </BreadcrumbText>
                 </span>
               </div>
             </div>

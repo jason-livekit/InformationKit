@@ -1,8 +1,8 @@
 'use client';
 
-import { useSidebar } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/bytes/Button";
+import { useSidebar } from "@/components/bytes/Sidebar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/bytes/Tooltip";
 import { ChevronLeftIcon, ChevronRightIcon } from "@/icons/react";
 
 export function NavLogo() {

@@ -171,12 +171,12 @@ export const semanticColors = {
 
   //separator
   separator1: {
-    light: '#DBDBD8',
-    dark: '#202020',
+    light: rawColors['gray-light']['400'],
+    dark: rawColors['gray-dark']['600'],
   },
   separator2: {
-    light: '#BDBDBB',
-    dark: '#30302F',
+    light: rawColors['gray-light']['500'],
+    dark: rawColors['gray-dark']['500'],
   },
   separatorAccent: {
     light: rawColors.blue['200'],
@@ -238,6 +238,14 @@ export const chartColors = {
     light: rawColors.red['600'],
     dark: rawColors.red['400'],
   },
+  chartSuccess: {
+    light: rawColors.green['600'],
+    dark: rawColors.green['400'],
+  },
+  chartModerate: {
+    light: rawColors.amber['600'],
+    dark: rawColors.amber['300'],
+  },
 } as const;
 
 export type CodeTwoFaceColorName = keyof typeof codeColors;
@@ -297,7 +305,7 @@ export function twoFaceColorsToTailwindDefinitions<T extends string>(
   colors: Record<T, { light: string; dark: string }>,
 ) {
   const definitions = Object.keys(colors).reduce<Partial<Record<T, string>>>((acc, colorName) => {
-    const css = `rgb(var(--lk-color-${colorName}) / <alpha-value>)` as const;
+    const css = `oklch(var(--lk-color-${colorName}) / <alpha-value>)` as const;
     return {
       ...acc,
       [colorName]: css,
@@ -310,4 +318,3 @@ export function twoFaceColorsToTailwindDefinitions<T extends string>(
 export function colorForTheme(colorName: AllTwoFaceColorNames, theme: 'light' | 'dark') {
   return allTwoFaceColors[colorName][theme];
 }
-

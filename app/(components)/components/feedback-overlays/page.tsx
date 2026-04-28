@@ -1,6 +1,6 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/bytes/Button";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +9,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/bytes/Dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,15 +18,7 @@ import {
   AlertDialogDescription,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+} from "@/components/bytes/AlertDialog";
 import {
   Drawer,
   DrawerClose,
@@ -36,26 +28,25 @@ import {
   DrawerHeader,
   DrawerTitle,
   DrawerTrigger,
-} from "@/components/ui/drawer";
+} from "@/components/bytes/Drawer";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover";
+} from "@/components/bytes/Popover";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/bytes/Tooltip";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
-} from "@/components/ui/hover-card";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
-import { toast } from "@/components/ui/sonner";
-import { Input } from "@/components/ui/input";
+} from "@/components/bytes/HoverCard";
+import { toast } from "@/components/bytes/Toaster";
+import { Input } from "@/components/bytes/Input";
 import { ExampleCard } from "../_shared/example-card";
 
 export default function FeedbackOverlaysPage() {
@@ -72,7 +63,7 @@ export default function FeedbackOverlaysPage() {
         id="dialog"
         title="Dialog"
         description="Modal dialog with header, body content, and footer actions."
-        importPath="@/components/ui/dialog"
+        importPath="@/components/bytes/Dialog"
       >
         <Dialog>
           <DialogTrigger asChild>
@@ -101,7 +92,7 @@ export default function FeedbackOverlaysPage() {
         id="alert-dialog"
         title="AlertDialog"
         description="Confirmation dialog for destructive or important actions."
-        importPath="@/components/ui/alert-dialog"
+        importPath="@/components/bytes/AlertDialog"
       >
         <AlertDialog>
           <AlertDialogTrigger asChild>
@@ -126,40 +117,10 @@ export default function FeedbackOverlaysPage() {
       </ExampleCard>
 
       <ExampleCard
-        id="sheet"
-        title="Sheet"
-        description="Slide-in panel from the edge of the screen."
-        importPath="@/components/ui/sheet"
-      >
-        <div className="flex gap-2">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="outline">Open Sheet (Right)</Button>
-            </SheetTrigger>
-            <SheetContent>
-              <SheetHeader>
-                <SheetTitle>Sheet Panel</SheetTitle>
-                <SheetDescription>
-                  This panel slides in from the right.
-                </SheetDescription>
-              </SheetHeader>
-              <div className="p-4 space-y-3">
-                <Input placeholder="Search..." />
-                <p className="text-sm text-fg2">
-                  Sheet content goes here. Use it for settings, detail views, or
-                  forms.
-                </p>
-              </div>
-            </SheetContent>
-          </Sheet>
-        </div>
-      </ExampleCard>
-
-      <ExampleCard
         id="drawer"
         title="Drawer"
         description="Side drawer panel built on Radix Dialog, with configurable direction."
-        importPath="@/components/ui/drawer"
+        importPath="@/components/bytes/Drawer"
       >
         <div className="flex gap-2">
           <Drawer>
@@ -211,7 +172,7 @@ export default function FeedbackOverlaysPage() {
         id="popover"
         title="Popover"
         description="Floating panel anchored to a trigger element."
-        importPath="@/components/ui/popover"
+        importPath="@/components/bytes/Popover"
       >
         <Popover>
           <PopoverTrigger asChild>
@@ -233,7 +194,7 @@ export default function FeedbackOverlaysPage() {
         id="tooltip"
         title="Tooltip"
         description="Small informational popup on hover."
-        importPath="@/components/ui/tooltip"
+        importPath="@/components/bytes/Tooltip"
       >
         <TooltipProvider>
           <div className="flex gap-3">
@@ -261,7 +222,7 @@ export default function FeedbackOverlaysPage() {
         id="hover-card"
         title="HoverCard"
         description="Rich preview card shown on hover, useful for user profiles or link previews."
-        importPath="@/components/ui/hover-card"
+        importPath="@/components/bytes/HoverCard"
       >
         <HoverCard>
           <HoverCardTrigger asChild>
@@ -283,34 +244,10 @@ export default function FeedbackOverlaysPage() {
       </ExampleCard>
 
       <ExampleCard
-        id="alert"
-        title="Alert"
-        description="Inline alert banners for important messages."
-        importPath="@/components/ui/alert"
-      >
-        <ExampleCard.Group label="Default">
-          <Alert>
-            <AlertTitle>Heads up!</AlertTitle>
-            <AlertDescription>
-              You can add components to your app using the CLI.
-            </AlertDescription>
-          </Alert>
-        </ExampleCard.Group>
-        <ExampleCard.Group label="Destructive">
-          <Alert variant="destructive">
-            <AlertTitle>Error</AlertTitle>
-            <AlertDescription>
-              Your session has expired. Please log in again.
-            </AlertDescription>
-          </Alert>
-        </ExampleCard.Group>
-      </ExampleCard>
-
-      <ExampleCard
         id="sonner"
         title="Sonner (Toasts)"
         description="Toast notifications with semantic variants and action buttons."
-        importPath="@/components/ui/sonner"
+        importPath="@/components/bytes/Toaster"
       >
         <ExampleCard.Group label="Variants">
           <div className="flex flex-wrap gap-2">

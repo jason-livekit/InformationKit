@@ -1,40 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/bytes/Input";
+import { Textarea } from "@/components/bytes/Textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Switch } from "@/components/ui/switch";
-import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-  InputOTPSeparator,
-} from "@/components/ui/input-otp";
-import { Calendar } from "@/components/ui/calendar";
+} from "@/components/bytes/Select";
+import { Checkbox } from "@/components/bytes/Checkbox";
+import { Switch } from "@/components/bytes/Switch";
+import { Label } from "@/components/bytes/Label";
 import { ExampleCard } from "../_shared/example-card";
 
 export default function FormsInputsPage() {
   const [selectValue, setSelectValue] = useState<string>("");
   const [checkbox1, setCheckbox1] = useState(true);
   const [checkbox2, setCheckbox2] = useState(false);
-  const [radioValue, setRadioValue] = useState("option-1");
   const [switchOn, setSwitchOn] = useState(true);
-  const [sliderValue, setSliderValue] = useState([40]);
-  const [otpValue, setOtpValue] = useState("");
-  const [calendarDate, setCalendarDate] = useState<Date | undefined>(
-    new Date()
-  );
 
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-16">
@@ -49,7 +34,7 @@ export default function FormsInputsPage() {
         id="input"
         title="Input"
         description="Standard text input with placeholder."
-        importPath="@/components/ui/input"
+        importPath="@/components/bytes/Input"
       >
         <div className="space-y-3 max-w-sm">
           <Input placeholder="Default input" />
@@ -61,7 +46,7 @@ export default function FormsInputsPage() {
         id="textarea"
         title="Textarea"
         description="Multiline text area for longer content."
-        importPath="@/components/ui/textarea"
+        importPath="@/components/bytes/Textarea"
       >
         <div className="max-w-sm">
           <Textarea placeholder="Write something here..." />
@@ -72,7 +57,7 @@ export default function FormsInputsPage() {
         id="select"
         title="Select"
         description="Dropdown selection from a list of options."
-        importPath="@/components/ui/select"
+        importPath="@/components/bytes/Select"
       >
         <div className="max-w-sm space-y-2">
           <Select
@@ -101,7 +86,7 @@ export default function FormsInputsPage() {
         id="checkbox"
         title="Checkbox"
         description="Checkbox inputs with checked, unchecked, and disabled states."
-        importPath="@/components/ui/checkbox"
+        importPath="@/components/bytes/Checkbox"
       >
         <div className="space-y-3">
           <label className="flex items-center gap-2 text-sm text-fg2 cursor-pointer">
@@ -130,36 +115,10 @@ export default function FormsInputsPage() {
       </ExampleCard>
 
       <ExampleCard
-        id="radio-group"
-        title="RadioGroup"
-        description="Radio buttons for single selection from a set of options."
-        importPath="@/components/ui/radio-group"
-      >
-        <div className="space-y-2">
-          <RadioGroup value={radioValue} onValueChange={setRadioValue}>
-            {[
-              { value: "option-1", label: "Default option" },
-              { value: "option-2", label: "Comfortable spacing" },
-              { value: "option-3", label: "Compact layout" },
-            ].map((opt) => (
-              <label
-                key={opt.value}
-                className="flex items-center gap-2 text-sm text-fg2 cursor-pointer"
-              >
-                <RadioGroupItem value={opt.value} />
-                {opt.label}
-              </label>
-            ))}
-          </RadioGroup>
-          <p className="text-xs text-fg3">Selected: {radioValue}</p>
-        </div>
-      </ExampleCard>
-
-      <ExampleCard
         id="switch"
         title="Switch"
         description="Toggle switch with on/off state labels."
-        importPath="@/components/ui/switch"
+        importPath="@/components/bytes/Switch"
       >
         <div className="space-y-4">
           <div className="flex items-center gap-4">
@@ -173,27 +132,10 @@ export default function FormsInputsPage() {
       </ExampleCard>
 
       <ExampleCard
-        id="slider"
-        title="Slider"
-        description="Range input for selecting a numeric value."
-        importPath="@/components/ui/slider"
-      >
-        <div className="max-w-sm space-y-3">
-          <Slider
-            value={sliderValue}
-            onValueChange={setSliderValue}
-            max={100}
-            step={1}
-          />
-          <p className="text-xs text-fg3">Value: {sliderValue[0]}</p>
-        </div>
-      </ExampleCard>
-
-      <ExampleCard
         id="label"
         title="Label"
         description="Accessible label for form controls."
-        importPath="@/components/ui/label"
+        importPath="@/components/bytes/Label"
       >
         <div className="max-w-sm space-y-4">
           <div className="space-y-1.5">
@@ -207,52 +149,6 @@ export default function FormsInputsPage() {
         </div>
       </ExampleCard>
 
-      <ExampleCard
-        id="input-otp"
-        title="InputOTP"
-        description="One-time password input with grouped digit slots."
-        importPath="@/components/ui/input-otp"
-      >
-        <div className="space-y-3">
-          <InputOTP maxLength={6} value={otpValue} onChange={setOtpValue}>
-            <InputOTPGroup>
-              <InputOTPSlot index={0} />
-              <InputOTPSlot index={1} />
-              <InputOTPSlot index={2} />
-            </InputOTPGroup>
-            <InputOTPSeparator />
-            <InputOTPGroup>
-              <InputOTPSlot index={3} />
-              <InputOTPSlot index={4} />
-              <InputOTPSlot index={5} />
-            </InputOTPGroup>
-          </InputOTP>
-          {otpValue && (
-            <p className="text-xs text-fg3">Value: {otpValue}</p>
-          )}
-        </div>
-      </ExampleCard>
-
-      <ExampleCard
-        id="calendar"
-        title="Calendar"
-        description="Date picker calendar with single date selection."
-        importPath="@/components/ui/calendar"
-      >
-        <div className="space-y-3">
-          <Calendar
-            mode="single"
-            selected={calendarDate}
-            onSelect={setCalendarDate}
-            className="rounded-md border border-separator1 w-fit"
-          />
-          {calendarDate && (
-            <p className="text-xs text-fg3">
-              Selected: {calendarDate.toLocaleDateString()}
-            </p>
-          )}
-        </div>
-      </ExampleCard>
     </div>
   );
 }

@@ -20,7 +20,7 @@ You are a principle-level frontend engineer specializing in rapid prototyping fo
 - **Zustand** - lightweight state management for complex prototypes
 
 **Component Architecture:**
-- **Shadcn/ui components** (`components/ui/`) - foundational UI primitives
+- **Bytes components** (`components/bytes/`) - foundational UI primitives
 - **Custom components** (`components/custom/`) - prototype-specific implementations
 
 ## Prototype-Specific Priorities

@@ -1,31 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Breadcrumb,
-  BreadcrumbList,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbSeparator,
-  BreadcrumbId,
-  BreadcrumbPage,
-} from "@/components/ui/breadcrumb";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationEllipsis,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/bytes/Tabs";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,15 +14,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuSeparator,
-  ContextMenuShortcut,
-  ContextMenuTrigger,
-} from "@/components/ui/context-menu";
+} from "@/components/bytes/DropdownMenu";
 import {
   Command,
   CommandEmpty,
@@ -56,13 +24,13 @@ import {
   CommandList,
   CommandSeparator,
   CommandShortcut,
-} from "@/components/ui/command";
+} from "@/components/bytes/Command";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
+} from "@/components/bytes/Collapsible";
+import { Button } from "@/components/bytes/Button";
 import { ExampleCard } from "../_shared/example-card";
 
 export default function NavigationPage() {
@@ -82,7 +50,7 @@ export default function NavigationPage() {
         id="tabs"
         title="Tabs"
         description="Three tab variants: default, segmented, and underline."
-        importPath="@/components/ui/tabs"
+        importPath="@/components/bytes/Tabs"
       >
         <ExampleCard.Group label="Default">
           <Tabs defaultValue="tab1">
@@ -159,103 +127,10 @@ export default function NavigationPage() {
       </ExampleCard>
 
       <ExampleCard
-        id="breadcrumb"
-        title="Breadcrumb"
-        description="Navigation trail with BreadcrumbId pill for IDs."
-        importPath="@/components/ui/breadcrumb"
-      >
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="#">Projects</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="#">Sessions</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbId href="#">RM_dTTtaqrTdUJt</BreadcrumbId>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage>Participants</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-      </ExampleCard>
-
-      <ExampleCard
-        id="accordion"
-        title="Accordion"
-        description="Collapsible sections for organizing related content."
-        importPath="@/components/ui/accordion"
-      >
-        <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="item-1">
-            <AccordionTrigger>What is this starter kit?</AccordionTrigger>
-            <AccordionContent>
-              A curated set of components for rapid prototyping with Next.js,
-              Tailwind, and Radix UI.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-2">
-            <AccordionTrigger>How do I add new components?</AccordionTrigger>
-            <AccordionContent>
-              Add them to the{" "}
-              <code className="text-xs bg-bg2 px-1 py-0.5 rounded">
-                components/ui/
-              </code>{" "}
-              directory following the existing patterns.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-3">
-            <AccordionTrigger>Can I use this in production?</AccordionTrigger>
-            <AccordionContent>
-              This kit is optimized for prototyping. For production, use the
-              Bites & Bytes component library.
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </ExampleCard>
-
-      <ExampleCard
-        id="pagination"
-        title="Pagination"
-        description="Page navigation with previous, next, and numbered links."
-        importPath="@/components/ui/pagination"
-      >
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <PaginationPrevious href="#" />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#" isActive>
-                1
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#">2</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink href="#">3</PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationEllipsis />
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationNext href="#" />
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
-      </ExampleCard>
-
-      <ExampleCard
         id="dropdown-menu"
         title="DropdownMenu"
         description="Menu that opens from a trigger button with items, groups, and sub-menus."
-        importPath="@/components/ui/dropdown-menu"
+        importPath="@/components/bytes/DropdownMenu"
       >
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -292,40 +167,10 @@ export default function NavigationPage() {
       </ExampleCard>
 
       <ExampleCard
-        id="context-menu"
-        title="ContextMenu"
-        description="Right-click context menu with items and keyboard shortcuts."
-        importPath="@/components/ui/context-menu"
-      >
-        <ContextMenu>
-          <ContextMenuTrigger className="flex h-32 w-full items-center justify-center rounded-md border border-dashed border-separator1 text-sm text-fg3">
-            Right-click here
-          </ContextMenuTrigger>
-          <ContextMenuContent className="w-48">
-            <ContextMenuItem>
-              Back
-              <ContextMenuShortcut>⌘[</ContextMenuShortcut>
-            </ContextMenuItem>
-            <ContextMenuItem>
-              Forward
-              <ContextMenuShortcut>⌘]</ContextMenuShortcut>
-            </ContextMenuItem>
-            <ContextMenuItem>
-              Reload
-              <ContextMenuShortcut>⌘R</ContextMenuShortcut>
-            </ContextMenuItem>
-            <ContextMenuSeparator />
-            <ContextMenuItem>View source</ContextMenuItem>
-            <ContextMenuItem>Inspect</ContextMenuItem>
-          </ContextMenuContent>
-        </ContextMenu>
-      </ExampleCard>
-
-      <ExampleCard
         id="command"
         title="Command"
         description="Command palette / search interface for quick access to actions."
-        importPath="@/components/ui/command"
+        importPath="@/components/bytes/Command"
       >
         <div className="rounded-md border border-separator1 max-w-md">
           <Command>
@@ -361,7 +206,7 @@ export default function NavigationPage() {
         id="collapsible"
         title="Collapsible"
         description="Simple expand/collapse container for hiding content."
-        importPath="@/components/ui/collapsible"
+        importPath="@/components/bytes/Collapsible"
       >
         <Collapsible open={collapsibleOpen} onOpenChange={setCollapsibleOpen}>
           <div className="flex items-center gap-2">

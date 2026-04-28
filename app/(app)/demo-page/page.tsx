@@ -1,4 +1,5 @@
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/bytes/Button";
+import { Badge } from "@/components/bytes/Badge";
 import { ProjectPageHeader } from "@/components/custom/project-page-header";
 import {
   Table,
@@ -7,8 +8,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
+} from "@/components/bytes/Table";
 import { mockSessions } from "@/lib/mock-data";
 
 export default function DemoPage() {

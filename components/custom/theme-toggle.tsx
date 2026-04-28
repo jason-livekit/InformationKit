@@ -1,11 +1,11 @@
 'use client';
 
 import { useTheme } from "next-themes";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/bytes/Button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/bytes/Popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/bytes/Select";
 import { MoonSolidIcon, SunSolidIcon, StudioDisplaySolidIcon } from "@/icons/react";
-import { useSidebar } from "@/components/ui/sidebar";
+import { useSidebar } from "@/components/bytes/Sidebar";
 import { useEffect, useState } from "react";
 
 export function ThemeToggle() {

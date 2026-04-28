@@ -3,8 +3,8 @@
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 import { MoonSolidIcon, SunSolidIcon, StudioDisplaySolidIcon } from "@/icons/react";
-import { Button } from "@/components/ui/button";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Button } from "@/components/bytes/Button";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/bytes/Popover";
 
 /**
  * A theme toggle that doesn't depend on SidebarProvider.

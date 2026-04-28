@@ -1,16 +1,10 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { TaskButton } from "@/components/ui/task-button";
-import { Toggle } from "@/components/ui/toggle";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import SegmentedControl from "@/components/ui/segmented-control";
+import { Button } from "@/components/bytes/Button";
+import { TaskButton } from "@/components/bytes/TaskButton";
 import { ExampleCard } from "../_shared/example-card";
 
 export default function ButtonsActionsPage() {
-  const [segmentedValue, setSegmentedValue] = useState("option-1");
-
   return (
     <div className="max-w-4xl mx-auto px-6 py-10 space-y-16">
       <div>
@@ -24,7 +18,7 @@ export default function ButtonsActionsPage() {
         id="button"
         title="Button"
         description="All variants and sizes. Supports icons, disabled state, and asChild composition."
-        importPath="@/components/ui/button"
+        importPath="@/components/bytes/Button"
       >
         <ExampleCard.Group label="Variants">
           <div className="flex flex-wrap gap-2">
@@ -54,7 +48,7 @@ export default function ButtonsActionsPage() {
         id="task-button"
         title="TaskButton"
         description="Async button that shows a loading spinner while the onClick promise resolves."
-        importPath="@/components/ui/task-button"
+        importPath="@/components/bytes/TaskButton"
       >
         <div className="flex flex-wrap gap-2">
           <TaskButton
@@ -75,59 +69,6 @@ export default function ButtonsActionsPage() {
         </div>
       </ExampleCard>
 
-      <ExampleCard
-        id="toggle"
-        title="Toggle / ToggleGroup"
-        description="Toggle buttons that maintain on/off state. Can be grouped for multi-option selection."
-        importPath="@/components/ui/toggle"
-      >
-        <ExampleCard.Group label="Standalone">
-          <div className="flex gap-2">
-            <Toggle aria-label="Toggle bold">
-              <span className="font-bold">B</span>
-            </Toggle>
-            <Toggle aria-label="Toggle italic">
-              <span className="italic">I</span>
-            </Toggle>
-            <Toggle aria-label="Toggle underline">
-              <span className="underline">U</span>
-            </Toggle>
-          </div>
-        </ExampleCard.Group>
-        <ExampleCard.Group label="Grouped (outline)">
-          <ToggleGroup type="multiple" variant="outline">
-            <ToggleGroupItem value="bold" aria-label="Toggle bold">
-              <span className="font-bold">B</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="italic" aria-label="Toggle italic">
-              <span className="italic">I</span>
-            </ToggleGroupItem>
-            <ToggleGroupItem value="underline" aria-label="Toggle underline">
-              <span className="underline">U</span>
-            </ToggleGroupItem>
-          </ToggleGroup>
-        </ExampleCard.Group>
-      </ExampleCard>
-
-      <ExampleCard
-        id="segmented-control"
-        title="SegmentedControl"
-        description="A button group toggle for switching between a set of related options."
-        importPath="@/components/ui/segmented-control"
-      >
-        <div className="max-w-sm space-y-3">
-          <SegmentedControl
-            value={segmentedValue}
-            onValueChange={setSegmentedValue}
-            options={[
-              { value: "option-1", label: "Daily" },
-              { value: "option-2", label: "Weekly" },
-              { value: "option-3", label: "Monthly" },
-            ]}
-          />
-          <p className="text-xs text-fg3">Selected: {segmentedValue}</p>
-        </div>
-      </ExampleCard>
     </div>
   );
 }

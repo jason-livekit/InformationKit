@@ -7,15 +7,14 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { StatusIndicator } from "@/components/ui/status-indicator";
-import { Avatar } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+} from "@/components/bytes/Table";
+import { Badge } from "@/components/bytes/Badge";
+import { StatusIndicator } from "@/components/bytes/StatusIndicator";
+import { Avatar } from "@/components/bytes/Avatar";
+import { Skeleton } from "@/components/bytes/Skeleton";
+import { Card } from "@/components/bytes/Card";
+import { Button } from "@/components/bytes/Button";
+import { Input } from "@/components/bytes/Input";
 import { ExampleCard } from "../_shared/example-card";
 
 export default function DataDisplayPage() {
@@ -32,7 +31,7 @@ export default function DataDisplayPage() {
         id="table"
         title="Table"
         description="Data table with headers and styled rows."
-        importPath="@/components/ui/table"
+        importPath="@/components/bytes/Table"
       >
         <div className="overflow-x-auto rounded border border-separator1">
           <Table>
@@ -78,7 +77,7 @@ export default function DataDisplayPage() {
         id="badge"
         title="Badge"
         description="Small status labels in all semantic variants."
-        importPath="@/components/ui/badge"
+        importPath="@/components/bytes/Badge"
       >
         <ExampleCard.Group label="Default size">
           <div className="flex flex-wrap gap-2">
@@ -101,7 +100,7 @@ export default function DataDisplayPage() {
         id="status-indicator"
         title="StatusIndicator"
         description="Status dots with semantic colors and animated ping for active states."
-        importPath="@/components/ui/status-indicator"
+        importPath="@/components/bytes/StatusIndicator"
       >
         <div className="space-y-3">
           <StatusIndicator status="success" message="Connected" />
@@ -116,7 +115,7 @@ export default function DataDisplayPage() {
         id="avatar"
         title="Avatar"
         description="User avatars with initial fallback in three sizes."
-        importPath="@/components/ui/avatar"
+        importPath="@/components/bytes/Avatar"
       >
         <div className="flex items-end gap-3">
           <Avatar size="sm" firstInitial="A" />
@@ -127,32 +126,10 @@ export default function DataDisplayPage() {
       </ExampleCard>
 
       <ExampleCard
-        id="progress"
-        title="Progress"
-        description="Determinate progress bar."
-        importPath="@/components/ui/progress"
-      >
-        <div className="space-y-4 max-w-sm">
-          <div>
-            <p className="text-xs text-fg3 mb-1">25%</p>
-            <Progress value={25} />
-          </div>
-          <div>
-            <p className="text-xs text-fg3 mb-1">60%</p>
-            <Progress value={60} />
-          </div>
-          <div>
-            <p className="text-xs text-fg3 mb-1">100%</p>
-            <Progress value={100} />
-          </div>
-        </div>
-      </ExampleCard>
-
-      <ExampleCard
         id="skeleton"
         title="Skeleton"
         description="Loading placeholders that pulse to indicate content is loading."
-        importPath="@/components/ui/skeleton"
+        importPath="@/components/bytes/Skeleton"
       >
         <div className="space-y-3 max-w-sm">
           <div className="flex items-center gap-3">
@@ -174,7 +151,7 @@ export default function DataDisplayPage() {
         id="card"
         title="Card"
         description="Structured card with title, description, body content, and footer."
-        importPath="@/components/ui/card"
+        importPath="@/components/bytes/Card"
       >
         <ExampleCard.Group label="With form content">
           <Card

@@ -1,17 +1,16 @@
 import {
   SidebarProvider,
   Sidebar,
-  SidebarInset,
   SidebarHeader,
   SidebarFooter,
   SidebarContent,
   SidebarGroup,
   SidebarGroupContent,
-} from "@/components/ui/sidebar";
+} from "@/components/bytes/Sidebar";
 import { NavLogo } from "@/components/custom/nav-logo";
 import { ThemeToggle } from "@/components/custom/theme-toggle";
-import { NavItem } from "@/components/ui/NavItem";
-import { NavItemAccordion, NavBadge } from "@/components/ui/NavItemAccordion";
+import { NavItem } from "@/components/custom/nav-item";
+import { NavItemAccordion, NavBadge } from "@/components/custom/nav-item-accordion";
 import { Chart5Icon, SquareGridMaginfyingGlassIcon, RobotIcon, TelephoneIcon, ArrowOutOfBoxIcon, SquareArrowInTopLeftIcon, SettingsGear2Icon, CreditCard2Icon } from "@/icons/react";
 
 export default function AppLayout({
@@ -61,9 +60,9 @@ export default function AppLayout({
           <ThemeToggle/>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset>
+      <main className="relative flex min-h-svh flex-1 flex-col bg-bg0">
         {children}
-      </SidebarInset>
+      </main>
     </SidebarProvider>
   );
 }
