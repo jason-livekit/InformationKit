@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Button } from '@/components/bytes/Button';
-import { CircleCheckIcon } from '@/icons/react';
+import { CircleCheckIcon, CircleInfoIcon, ArrowRightIcon } from '@/icons/react';
 import { DotFill } from '@/components/card-sort/dot-fill';
 
 interface SignInFormProps {
@@ -11,18 +11,22 @@ interface SignInFormProps {
 
 interface RequestResponse {
   ok?: boolean;
+  email?: string;
   emailed?: boolean;
-  devLink?: string | null;
+  fallbackLink?: string | null;
   error?: string;
+}
+
+interface Sent {
+  email: string;
+  emailed: boolean;
+  fallbackLink: string | null;
 }
 
 export function SignInForm({ next }: SignInFormProps) {
   const [email, setEmail] = React.useState('');
   const [submitting, setSubmitting] = React.useState(false);
-  const [sent, setSent] = React.useState<{
-    emailed: boolean;
-    devLink: string | null;
-  } | null>(null);
+  const [sent, setSent] = React.useState<Sent | null>(null);
   const [error, setError] = React.useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -42,8 +46,9 @@ export function SignInForm({ next }: SignInFormProps) {
         return;
       }
       setSent({
+        email: body.email ?? email,
         emailed: body.emailed ?? false,
-        devLink: body.devLink ?? null,
+        fallbackLink: body.fallbackLink ?? null,
       });
     } finally {
       setSubmitting(false);
@@ -51,32 +56,49 @@ export function SignInForm({ next }: SignInFormProps) {
   }
 
   if (sent) {
+    const finalLink = sent.fallbackLink
+      ? withNext(sent.fallbackLink, next)
+      : null;
+
+    if (sent.emailed) {
+      return (
+        <ResultCard
+          icon={<CircleCheckIcon className="text-fgSuccess relative h-7 w-7" />}
+          title="Check your email"
+        >
+          <p className="text-fg3 relative max-w-sm text-xs">
+            We sent a sign-in link to{' '}
+            <strong className="text-fg1 font-semibold">{sent.email}</strong>. It expires in
+            15 minutes and can only be used once.
+          </p>
+          <ResetLink onClick={() => setSent(null)} />
+        </ResultCard>
+      );
+    }
+
+    // No email transport configured — show the link directly.
     return (
-      <div className="border-separator1 bg-bg1 relative flex flex-col items-center gap-3 overflow-hidden rounded-lg border p-6 text-center">
-        <DotFill tone="accent" opacity={0.14} />
-        <CircleCheckIcon className="text-fgSuccess relative h-7 w-7" />
-        <h2 className="text-fg0 relative text-sm font-semibold">Check your email</h2>
+      <ResultCard
+        icon={<CircleInfoIcon className="text-fgModerate relative h-7 w-7" />}
+        title="Email delivery isn't configured"
+      >
         <p className="text-fg3 relative max-w-sm text-xs">
-          {sent.emailed
-            ? `We sent a sign-in link to ${email}. It expires in 15 minutes.`
-            : `Email delivery is not configured. Check the server console for the sign-in link, or click below if you're in dev.`}
+          Normally we&apos;d email a sign-in link to{' '}
+          <strong className="text-fg1 font-semibold">{sent.email}</strong>. Since{' '}
+          <code className="bg-bg2 text-fg1 rounded px-1 py-0.5 font-mono text-[10px]">
+            RESEND_API_KEY
+          </code>{' '}
+          isn&apos;t set, you can sign in directly below. Set it to email links to real users.
         </p>
-        {sent.devLink && (
-          <a
-            href={`${sent.devLink}&next=${encodeURIComponent(next)}`}
-            className="text-fgAccent1 relative break-all text-xs font-semibold hover:underline"
-          >
-            Open dev sign-in link →
+        {finalLink && (
+          <a href={finalLink} className="relative">
+            <Button variant="primary" size="lg" rightIcon={<ArrowRightIcon />}>
+              Sign in as {sent.email}
+            </Button>
           </a>
         )}
-        <button
-          type="button"
-          onClick={() => setSent(null)}
-          className="text-fg3 relative text-xs hover:underline"
-        >
-          Use a different email
-        </button>
-      </div>
+        <ResetLink onClick={() => setSent(null)} />
+      </ResultCard>
     );
   }
 
@@ -98,9 +120,44 @@ export function SignInForm({ next }: SignInFormProps) {
       <Button variant="primary" size="lg" type="submit" disabled={submitting || !email}>
         {submitting ? 'Sending…' : 'Send sign-in link'}
       </Button>
-      {error && (
-        <p className="text-fgSerious1 text-xs">{error}</p>
-      )}
+      {error && <p className="text-fgSerious1 text-xs">{error}</p>}
     </form>
   );
+}
+
+function ResultCard({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border-separator1 bg-bg1 relative flex flex-col items-center gap-3 overflow-hidden rounded-lg border p-6 text-center">
+      <DotFill tone="accent" opacity={0.14} />
+      {icon}
+      <h2 className="text-fg0 relative text-sm font-semibold">{title}</h2>
+      {children}
+    </div>
+  );
+}
+
+function ResetLink({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-fg3 relative text-xs hover:underline"
+    >
+      Use a different email
+    </button>
+  );
+}
+
+function withNext(url: string, next: string): string {
+  if (!next || next === '/') return url;
+  const sep = url.includes('?') ? '&' : '?';
+  return `${url}${sep}next=${encodeURIComponent(next)}`;
 }

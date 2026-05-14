@@ -31,8 +31,9 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     ok: true,
+    email,
     emailed: result.emailed,
-    devLink: result.devLink,
+    fallbackLink: result.fallbackLink,
     expiresAt,
   });
 }

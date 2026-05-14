@@ -42,8 +42,10 @@ Sign-in works via a one-time email link. The flow:
 2. The server issues a single-use token (15-minute TTL, stored in the KV).
 3. The link is delivered:
    - **With `RESEND_API_KEY` set** — sent via [Resend](https://resend.com).
-   - **Without it** — printed to the server console, and shown inline on the sign-in page
-     in development for easy click-through.
+   - **Without it** — surfaced directly on the sign-in confirmation screen as a "Sign in
+     as you@example.com" button, and also logged to the server console. Convenient for
+     prototyping, less appropriate for a real multi-user deployment — set `RESEND_API_KEY`
+     once you have users you don't want each other signing in as.
 4. User opens the link → `/sign-in/verify?token=…` → token is consumed → session cookie set.
 
 Put these in `.env.local`:

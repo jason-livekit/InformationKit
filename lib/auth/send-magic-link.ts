@@ -9,16 +9,20 @@ export interface MagicLinkPayload {
 export interface SendResult {
   /** True if delivered through an email transport (Resend). */
   emailed: boolean;
-  /** True only in non-production: surface the URL on the response so dev can click through. */
-  devLink: string | null;
+  /**
+   * The sign-in URL, returned to the client only when email delivery is NOT configured
+   * (so the prototype is usable without setting up Resend). When `emailed` is true, this
+   * is null — users should sign in via the link in their inbox.
+   */
+  fallbackLink: string | null;
 }
 
 /**
- * Sends the magic link via Resend if RESEND_API_KEY is set, otherwise logs to the server
- * console. In development, also returns the link so the sign-in page can show it inline.
+ * Sends the magic link via Resend if RESEND_API_KEY is set. Otherwise returns the link so
+ * the sign-in page can render it inline — this keeps the prototype usable out of the box
+ * without an email transport. Always logs to the server console as a backup.
  */
 export async function sendMagicLink(payload: MagicLinkPayload): Promise<SendResult> {
-  const isDev = process.env.NODE_ENV !== 'production';
   const apiKey = process.env.RESEND_API_KEY;
   const from = process.env.MAGIC_LINK_FROM ?? 'Information Kit <onboarding@resend.dev>';
 
@@ -39,7 +43,7 @@ export async function sendMagicLink(payload: MagicLinkPayload): Promise<SendResu
         }),
       });
       if (res.ok) {
-        return { emailed: true, devLink: isDev ? payload.url : null };
+        return { emailed: true, fallbackLink: null };
       }
       const text = await res.text();
       console.error('[magic-link] Resend send failed:', res.status, text);
@@ -48,9 +52,9 @@ export async function sendMagicLink(payload: MagicLinkPayload): Promise<SendResu
     }
   }
 
-  // Fallback / dev: just log it.
+  // No transport (or transport failed): surface the link in the response.
   console.log(`[magic-link] for ${payload.email}: ${payload.url}`);
-  return { emailed: false, devLink: isDev ? payload.url : null };
+  return { emailed: false, fallbackLink: payload.url };
 }
 
 function renderHtml({ url }: MagicLinkPayload): string {
