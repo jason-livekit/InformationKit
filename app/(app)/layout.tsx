@@ -1,18 +1,21 @@
 import Link from 'next/link';
+import { auth } from '@/auth';
 import { ThemeToggleStandalone } from '@/components/custom/theme-toggle-standalone';
-import { SettingsGear2Icon } from '@/icons/react';
-import { Button } from '@/components/bytes/Button';
 import { TooltipProvider } from '@/components/bytes/Tooltip';
+import { SignInButton } from '@/components/auth/sign-in-button';
+import { UserMenu } from '@/components/auth/user-menu';
 
-export default function AppLayout({
+export default async function AppLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+  const user = session?.user;
   return (
     <div className="bg-bg0 text-fg0 flex min-h-svh flex-col">
       <header className="border-b-separator1 bg-bg1 sticky top-0 z-30 flex h-14 items-center justify-between border-b px-6">
-        <Link href="/" className="flex items-center gap-2 group">
+        <Link href="/" className="group flex items-center gap-2">
           <svg
             width={26}
             height={26}
@@ -35,17 +38,17 @@ export default function AppLayout({
               fill="currentcolor"
             />
           </svg>
-          <span className="text-fg0 text-sm font-semibold leading-none">Card sort</span>
+          <span className="text-fg0 text-sm font-semibold leading-none">Information Kit</span>
           <span className="text-fg4 hidden text-xs font-mono uppercase tracking-wider sm:inline-block">
-            · sessions UI
+            · studies
           </span>
         </Link>
         <div className="flex items-center gap-2">
-          <Link href="/settings">
-            <Button variant="ghost" size="sm" leftIcon={<SettingsGear2Icon />}>
-              Settings
-            </Button>
-          </Link>
+          {user ? (
+            <UserMenu name={user.name} email={user.email} image={user.image} />
+          ) : (
+            <SignInButton variant="secondary">Sign in</SignInButton>
+          )}
           <ThemeToggleStandalone />
         </div>
       </header>

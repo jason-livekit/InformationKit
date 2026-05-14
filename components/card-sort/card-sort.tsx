@@ -34,8 +34,7 @@ import {
   ChevronDownSmallIcon,
 } from '@/icons/react';
 import { cn } from '@/lib/bytes/utils';
-import type { Card as CardItem, Group } from '@/lib/card-sort/types';
-import { CARDS, CARDS_BY_ID } from '@/lib/card-sort/items';
+import type { Card as CardItem, Group, SubmissionInput } from '@/lib/repo/schemas';
 import { clearDraft, loadDraft, saveDraft } from '@/lib/card-sort/storage';
 
 import { Column } from './column';
@@ -44,16 +43,30 @@ import { GroupPanel } from './group-panel';
 import { NotUsefulDivider } from './not-useful-divider';
 import { DotFill } from './dot-fill';
 
-interface CardSortProps {
-  onShowResults: () => void;
-  onSubmitted: () => void;
+export interface CardSortProps {
+  /** The catalog of cards to sort. */
+  cards: CardItem[];
+  /** Optional groups pre-created by the study author. They appear pre-filled (or empty) on first load. */
+  predefinedGroups?: Group[];
+  /** Per-instance localStorage key. Pass a study-scoped key like `card-sort:draft:${studyId}`. */
+  draftKey: string;
+  /** Title shown in the page header. Defaults to the study description text. */
+  title?: string;
+  /** Subtitle (description) text. */
+  subtitle?: string;
+  /** Badge label at the top-left. */
+  badgeLabel?: string;
+  /** Called when the user submits. If omitted, no submit button is shown (preview mode). */
+  onSubmit?: (input: SubmissionInput) => Promise<void> | void;
+  /** Called when the user wants to view aggregated results. If omitted, the button is hidden. */
+  onShowResults?: () => void;
+  /** Disables submit + reset + persistence. */
+  readOnly?: boolean;
 }
 
 const UNSORTED = 'unsorted';
 const NOT_USEFUL = 'notUseful';
 const GROUP_PREFIX = 'group:';
-
-const initialOrder = CARDS.map((c) => c.id);
 
 function uid(prefix: string) {
   return `${prefix}${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
@@ -64,25 +77,42 @@ function newGroup(): Group {
 }
 
 interface State {
-  /** All ids in their canonical order in the center column. The split index controls which
-   * slice is "not useful". */
   unsorted: string[];
-  /** Number of trailing items in `unsorted` that are below the not-useful divider. */
   notUsefulCount: number;
   groups: Group[];
 }
 
-function defaultState(): State {
+function defaultStateFor(cards: CardItem[], predefinedGroups: Group[]): State {
+  const inGroups = new Set(predefinedGroups.flatMap((g) => g.cardIds));
   return {
-    unsorted: [...initialOrder],
+    unsorted: cards.map((c) => c.id).filter((id) => !inGroups.has(id)),
     notUsefulCount: 0,
-    groups: [],
+    groups: predefinedGroups.map((g) => ({ ...g, cardIds: [...g.cardIds] })),
   };
 }
 
-export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
+export function CardSort({
+  cards,
+  predefinedGroups = [],
+  draftKey,
+  title = 'Card sort',
+  subtitle = 'Drag the cards to group related items, reorder them by importance, and mark anything you don’t care about as not useful.',
+  badgeLabel = 'Card sort',
+  onSubmit,
+  onShowResults,
+  readOnly = false,
+}: CardSortProps) {
+  const cardsById = React.useMemo(() => {
+    const map: Record<string, CardItem> = {};
+    for (const c of cards) map[c.id] = c;
+    return map;
+  }, [cards]);
+  const knownIds = React.useMemo(() => new Set(cards.map((c) => c.id)), [cards]);
+
   const [mounted, setMounted] = React.useState(false);
-  const [state, setState] = React.useState<State>(defaultState);
+  const [state, setState] = React.useState<State>(() =>
+    defaultStateFor(cards, predefinedGroups),
+  );
   const [hasChanges, setHasChanges] = React.useState(false);
   const [activeId, setActiveId] = React.useState<string | null>(null);
   const [submitting, setSubmitting] = React.useState(false);
@@ -98,16 +128,16 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
   const dragStartNotUsefulCountRef = React.useRef<number>(0);
 
   React.useEffect(() => {
-    const draft = loadDraft();
+    if (readOnly) return;
+    const draft = loadDraft(draftKey);
     if (draft) {
-      const known = new Set(initialOrder);
-      const cleanUnsorted = draft.unsorted.filter((id) => known.has(id));
+      const cleanUnsorted = draft.unsorted.filter((id) => knownIds.has(id));
       const cleanGroups = draft.groups.map((g) => ({
         ...g,
-        cardIds: g.cardIds.filter((id) => known.has(id)),
+        cardIds: g.cardIds.filter((id) => knownIds.has(id)),
       }));
       const inGroups = new Set(cleanGroups.flatMap((g) => g.cardIds));
-      const allKnown = initialOrder.filter((id) => !inGroups.has(id));
+      const allKnown = cards.map((c) => c.id).filter((id) => !inGroups.has(id));
       const merged: string[] = [];
       const cleanSet = new Set(cleanUnsorted);
       for (const id of cleanUnsorted) {
@@ -122,15 +152,20 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
         groups: cleanGroups,
       });
     }
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
 
   React.useEffect(() => {
-    saveDraft({
-      unsorted: state.unsorted,
-      notUsefulCount: state.notUsefulCount,
-      groups: state.groups,
-    });
-  }, [state]);
+    if (readOnly) return;
+    saveDraft(
+      {
+        unsorted: state.unsorted,
+        notUsefulCount: state.notUsefulCount,
+        groups: state.groups,
+      },
+      draftKey,
+    );
+  }, [state, draftKey, readOnly]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
@@ -247,6 +282,19 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
     setActiveId(String(event.active.id));
   };
 
+  const containerLength = React.useCallback(
+    (id: string) => {
+      if (id === UNSORTED) return usefulIds.length;
+      if (id === NOT_USEFUL) return notUsefulIds.length;
+      if (id.startsWith(GROUP_PREFIX)) {
+        const gid = id.slice(GROUP_PREFIX.length);
+        return state.groups.find((g) => g.id === gid)?.cardIds.length ?? 0;
+      }
+      return 0;
+    },
+    [usefulIds, notUsefulIds, state.groups],
+  );
+
   const onDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -267,16 +315,6 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
       : indexInContainer(String(over.id), overContainer);
 
     moveCardToContainer(String(active.id), activeContainer, overContainer, overIndex);
-  };
-
-  const containerLength = (id: string) => {
-    if (id === UNSORTED) return usefulIds.length;
-    if (id === NOT_USEFUL) return notUsefulIds.length;
-    if (id.startsWith(GROUP_PREFIX)) {
-      const gid = id.slice(GROUP_PREFIX.length);
-      return state.groups.find((g) => g.id === gid)?.cardIds.length ?? 0;
-    }
-    return 0;
   };
 
   const onDragEnd = (event: DragEndEvent) => {
@@ -336,15 +374,11 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
   };
 
   const onResetDraft = () => {
-    setState(defaultState());
+    setState(defaultStateFor(cards, predefinedGroups));
     setHasChanges(false);
-    clearDraft();
+    clearDraft(draftKey);
   };
 
-  /**
-   * Divider drag → delta-based splitting. Each ~card-height of dy moves one card across the line.
-   * Negative dy (drag up) increases notUsefulCount; positive dy (drag down) decreases it.
-   */
   const CARD_STEP_PX = 52;
   const computeNewNotUsefulCount = (clientY: number): number => {
     const dy = clientY - dragStartYRef.current;
@@ -369,13 +403,12 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
     dragStartYRef.current = 0;
   };
 
-  // Capture initial y at the moment the user actually presses down via a custom dragStart:
   const onDividerPressDown = (clientY: number) => {
     dragStartYRef.current = clientY;
     dragStartNotUsefulCountRef.current = state.notUsefulCount;
   };
 
-  const activeCard: CardItem | null = activeId ? CARDS_BY_ID[activeId] ?? null : null;
+  const activeCard: CardItem | null = activeId ? cardsById[activeId] ?? null : null;
   const activeContainer = activeId ? findContainer(activeId) : null;
   const activeOrder =
     activeId && activeContainer === UNSORTED
@@ -388,12 +421,13 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
           })()
         : null;
 
-  const onSubmit = async () => {
+  const onSubmitClick = async () => {
+    if (!onSubmit) return;
     setError(null);
     setSubmitting(true);
     try {
       const usefulLen = state.unsorted.length - state.notUsefulCount;
-      const payload = {
+      const payload: SubmissionInput = {
         groups: state.groups.map((g) => ({
           id: g.id,
           label: g.label,
@@ -402,19 +436,10 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
         unsorted: state.unsorted.slice(0, usefulLen),
         notUseful: state.unsorted.slice(usefulLen),
       };
-      const res = await fetch('/api/submissions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      if (!res.ok) {
-        const j = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(j.error || 'Failed to submit');
-      }
-      clearDraft();
-      setState(defaultState());
+      await onSubmit(payload);
+      clearDraft(draftKey);
+      setState(defaultStateFor(cards, predefinedGroups));
       setHasChanges(false);
-      onSubmitted();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
     } finally {
@@ -425,14 +450,7 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
   if (!mounted) {
     return (
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
-        <Header
-          hasChanges={false}
-          submitting={false}
-          error={null}
-          onSubmit={() => {}}
-          onShowResults={onShowResults}
-          onResetDraft={() => {}}
-        />
+        <Header title={title} subtitle={subtitle} badgeLabel={badgeLabel} error={null} />
         <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
           <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
           <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
@@ -451,17 +469,9 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
       modifiers={[restrictToWindowEdges]}
     >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
-        <Header
-          hasChanges={hasChanges}
-          submitting={submitting}
-          error={error}
-          onSubmit={onSubmit}
-          onShowResults={onShowResults}
-          onResetDraft={onResetDraft}
-        />
+        <Header title={title} subtitle={subtitle} badgeLabel={badgeLabel} error={error} />
 
         <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
-          {/* Center column with not-useful divider */}
           <div className="flex flex-col gap-3 lg:sticky lg:top-[5rem] lg:self-start">
             <ColumnHeading
               title="Items to sort"
@@ -484,7 +494,7 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
                       }}
                     >
                       <SortableCard
-                        card={CARDS_BY_ID[id]!}
+                        card={cardsById[id]!}
                         order={idx + 1}
                         tone="ok"
                         containerId={UNSORTED}
@@ -495,7 +505,6 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
                     <EmptyDropZone label="Drop cards here" />
                   )}
                 </Column>
-
               </div>
               <div className="border-t-separator1 bg-bg1 relative flex flex-col gap-2 border-t px-3 pt-1 pb-3">
                 <NotUsefulDivider
@@ -523,7 +532,7 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
                           }}
                         >
                           <SortableCard
-                            card={CARDS_BY_ID[id]!}
+                            card={cardsById[id]!}
                             order={null}
                             tone="danger"
                             containerId={NOT_USEFUL}
@@ -537,7 +546,6 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
             </div>
           </div>
 
-          {/* Groups */}
           <div className="flex flex-col gap-3 min-w-0">
             <ColumnHeading
               title="Groups"
@@ -573,7 +581,7 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
                         {g.cardIds.map((id, idx) => (
                           <SortableCard
                             key={id}
-                            card={CARDS_BY_ID[id]!}
+                            card={cardsById[id]!}
                             order={idx + 1}
                             tone="ok"
                             containerId={containerId}
@@ -590,15 +598,18 @@ export function CardSort({ onShowResults, onSubmitted }: CardSortProps) {
         </div>
       </div>
 
-      <StickyActionBar
-        hasChanges={hasChanges}
-        submitting={submitting}
-        notUsefulCount={state.notUsefulCount}
-        groupCount={state.groups.length}
-        onSubmit={onSubmit}
-        onShowResults={onShowResults}
-        onResetDraft={onResetDraft}
-      />
+      {!readOnly && (onSubmit || onShowResults) && (
+        <StickyActionBar
+          hasChanges={hasChanges}
+          submitting={submitting}
+          notUsefulCount={state.notUsefulCount}
+          groupCount={state.groups.length}
+          canSubmit={!!onSubmit}
+          onSubmit={onSubmitClick}
+          onShowResults={onShowResults}
+          onResetDraft={onResetDraft}
+        />
+      )}
 
       <DragOverlay>
         {activeCard ? (
@@ -619,6 +630,7 @@ function StickyActionBar({
   submitting,
   notUsefulCount,
   groupCount,
+  canSubmit,
   onSubmit,
   onShowResults,
   onResetDraft,
@@ -627,8 +639,9 @@ function StickyActionBar({
   submitting: boolean;
   notUsefulCount: number;
   groupCount: number;
+  canSubmit: boolean;
   onSubmit: () => void;
-  onShowResults: () => void;
+  onShowResults?: () => void;
   onResetDraft: () => void;
 }) {
   return (
@@ -647,7 +660,7 @@ function StickyActionBar({
                 </span>
               </>
             ) : (
-              <span>Make any change to enable submit.</span>
+              <span>Drag a card to begin.</span>
             )}
           </span>
         </div>
@@ -662,23 +675,27 @@ function StickyActionBar({
               Reset
             </Button>
           )}
-          <Button
-            variant="secondary"
-            size="sm"
-            leftIcon={<Chart5Icon />}
-            onClick={onShowResults}
-          >
-            Show results
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            leftIcon={<ArrowOutOfBoxIcon />}
-            disabled={!hasChanges || submitting}
-            onClick={onSubmit}
-          >
-            {submitting ? 'Submitting…' : 'Submit my sort'}
-          </Button>
+          {onShowResults && (
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<Chart5Icon />}
+              onClick={onShowResults}
+            >
+              Show results
+            </Button>
+          )}
+          {canSubmit && (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<ArrowOutOfBoxIcon />}
+              disabled={!hasChanges || submitting}
+              onClick={onSubmit}
+            >
+              {submitting ? 'Submitting…' : 'Submit my sort'}
+            </Button>
+          )}
         </div>
       </div>
     </div>
@@ -686,19 +703,15 @@ function StickyActionBar({
 }
 
 function Header({
-  hasChanges,
-  submitting,
+  title,
+  subtitle,
+  badgeLabel,
   error,
-  onSubmit,
-  onShowResults,
-  onResetDraft,
 }: {
-  hasChanges: boolean;
-  submitting: boolean;
+  title: string;
+  subtitle: string;
+  badgeLabel: string;
   error: string | null;
-  onSubmit: () => void;
-  onShowResults: () => void;
-  onResetDraft: () => void;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -706,15 +719,11 @@ function Header({
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
             <Badge variant="accent" size="medium">
-              Card sort
+              {badgeLabel}
             </Badge>
-            <h1 className="font-display text-fg0 text-2xl">Sessions UI · Information architecture</h1>
+            <h1 className="font-display text-fg0 text-2xl">{title}</h1>
           </div>
-          <p className="text-fg3 max-w-2xl text-sm">
-            Help us figure out how to organize the metrics, configuration, and events that show up in
-            a session view. Drag the cards to reorder them by importance, group related items, and
-            mark anything you don&apos;t care about as not useful.
-          </p>
+          <p className="text-fg3 max-w-2xl text-sm">{subtitle}</p>
         </div>
       </div>
       <InstructionsAccordion />

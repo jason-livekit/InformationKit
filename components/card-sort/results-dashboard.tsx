@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/bytes/utils';
-import type { AggregatedResults } from '@/lib/card-sort/types';
-import { CARDS, CARDS_BY_ID } from '@/lib/card-sort/items';
+import type { AggregatedResults } from '@/lib/card-sort/aggregate';
 import { DotFill } from './dot-fill';
 
 interface ResultsDashboardProps {
@@ -11,8 +10,14 @@ interface ResultsDashboardProps {
 }
 
 export function ResultsDashboard({ results }: ResultsDashboardProps) {
-  const { totalSubmissions, notUsefulByCard, groupNameTotals, groupNameCountsByCard, pairCounts } =
-    results;
+  const {
+    totalSubmissions,
+    notUsefulByCard,
+    groupNameTotals,
+    groupNameCountsByCard,
+    pairCounts,
+    cards: CARDS,
+  } = results;
 
   const sortedGroupNames = React.useMemo(
     () =>
@@ -47,6 +52,7 @@ export function ResultsDashboard({ results }: ResultsDashboardProps) {
         description="For each card, the share of users who put it in a popular group, left it ungrouped, or marked it as not useful."
       >
         <CardPlacementTable
+          cards={CARDS}
           notUsefulByCard={notUsefulByCard}
           groupNameCountsByCard={groupNameCountsByCard}
           totalSubmissions={totalSubmissions}
@@ -58,7 +64,11 @@ export function ResultsDashboard({ results }: ResultsDashboardProps) {
         title="Co-occurrence"
         description="How often two cards ended up in the same group. Higher = stronger affinity."
       >
-        <CoOccurrenceMatrix pairCounts={pairCounts} totalSubmissions={totalSubmissions} />
+        <CoOccurrenceMatrix
+          cards={CARDS}
+          pairCounts={pairCounts}
+          totalSubmissions={totalSubmissions}
+        />
       </Section>
     </div>
   );
@@ -196,11 +206,13 @@ function GroupThemes({
 }
 
 function CardPlacementTable({
+  cards: CARDS,
   notUsefulByCard,
   groupNameCountsByCard,
   totalSubmissions,
   topGroupNames,
 }: {
+  cards: AggregatedResults['cards'];
   notUsefulByCard: Record<string, number>;
   groupNameCountsByCard: Record<string, Record<string, number>>;
   totalSubmissions: number;
@@ -298,13 +310,14 @@ function NotUsefulPill({ count, pct }: { count: number; pct: number }) {
 }
 
 function CoOccurrenceMatrix({
+  cards,
   pairCounts,
   totalSubmissions,
 }: {
+  cards: AggregatedResults['cards'];
   pairCounts: Record<string, Record<string, number>>;
   totalSubmissions: number;
 }) {
-  const cards = CARDS;
   // limit displayed labels to keep this readable on narrower screens
   const max = React.useMemo(() => {
     let m = 0;
@@ -417,6 +430,3 @@ function EmptyState() {
   );
 }
 
-// CARDS_BY_ID is imported but referenced only for type integrity; intentionally re-exported
-// to avoid tree-shaker dropping it in dev when results are zero.
-export const _internal = { CARDS_BY_ID };

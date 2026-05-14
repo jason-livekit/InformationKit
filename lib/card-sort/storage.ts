@@ -1,6 +1,4 @@
-import type { Group } from './types';
-
-const KEY = 'card-sort:draft';
+import type { Group } from '@/lib/repo/schemas';
 
 export interface DraftState {
   unsorted: string[];
@@ -8,10 +6,12 @@ export interface DraftState {
   groups: Group[];
 }
 
-export function loadDraft(): DraftState | null {
+const LEGACY_KEY = 'card-sort:draft';
+
+export function loadDraft(key: string = LEGACY_KEY): DraftState | null {
   if (typeof window === 'undefined') return null;
   try {
-    const raw = window.localStorage.getItem(KEY);
+    const raw = window.localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as DraftState;
     if (!parsed || !Array.isArray(parsed.unsorted) || !Array.isArray(parsed.groups)) return null;
@@ -21,19 +21,19 @@ export function loadDraft(): DraftState | null {
   }
 }
 
-export function saveDraft(state: DraftState) {
+export function saveDraft(state: DraftState, key: string = LEGACY_KEY) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(state));
+    window.localStorage.setItem(key, JSON.stringify(state));
   } catch {
     // ignore
   }
 }
 
-export function clearDraft() {
+export function clearDraft(key: string = LEGACY_KEY) {
   if (typeof window === 'undefined') return;
   try {
-    window.localStorage.removeItem(KEY);
+    window.localStorage.removeItem(key);
   } catch {
     // ignore
   }
