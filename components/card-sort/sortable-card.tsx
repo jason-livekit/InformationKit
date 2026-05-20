@@ -6,7 +6,8 @@ import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/bytes/utils';
 import type { Card as CardItem } from '@/lib/card-sort/types';
 import { DotFill } from './dot-fill';
-import { ReorderIcon } from '@/icons/react';
+import { CircleInfoIcon, ReorderIcon } from '@/icons/react';
+import { ToggleTip } from '@/components/bytes/ToggleTip';
 
 export interface SortableCardProps {
   card: CardItem;
@@ -71,9 +72,44 @@ export const SortableCard = React.forwardRef<HTMLDivElement, SortableCardProps>(
             )}
           </div>
         </div>
+        {card.description && (
+          <span
+            className="relative flex shrink-0 items-center"
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            onKeyDown={(e) => e.stopPropagation()}
+          >
+            <ToggleTip
+              label={`About ${card.label}`}
+              tooltipPosition="top"
+              trigger={
+                <button
+                  type="button"
+                  aria-label={`About ${card.label}`}
+                  className={cn(
+                    'inline-flex h-6 w-6 cursor-help items-center justify-center rounded-full transition-colors',
+                    tone === 'ok'
+                      ? 'text-fg4 hover:bg-bg2 hover:text-fg2'
+                      : 'text-fgSerious1/70 hover:bg-bgSerious2 hover:text-fgSerious1',
+                  )}
+                >
+                  <CircleInfoIcon className="h-3.5 w-3.5" />
+                </button>
+              }
+            >
+              <div className="flex flex-col gap-1">
+                <div className="text-fg0 text-xs font-semibold">
+                  {card.context ? `${card.context} · ${card.label}` : card.label}
+                </div>
+                <p className="text-fg2 text-xs leading-snug">{card.description}</p>
+              </div>
+            </ToggleTip>
+          </span>
+        )}
         <div
           className={cn(
-            'relative ml-2 inline-flex h-6 min-w-6 items-center justify-center rounded font-mono text-[10px] font-bold tracking-wider tabular-nums',
+            'relative ml-1 inline-flex h-6 min-w-6 items-center justify-center rounded font-mono text-[10px] font-bold tracking-wider tabular-nums',
             order !== null
               ? tone === 'ok'
                 ? 'bg-bg2 text-fg2 px-1.5'

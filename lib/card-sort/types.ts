@@ -6,6 +6,7 @@ export interface Card {
   id: CardId;
   label: string;
   context?: string;
+  description?: string;
 }
 
 export interface Group {
