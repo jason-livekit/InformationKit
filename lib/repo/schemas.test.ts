@@ -16,6 +16,11 @@ describe('CardSchema', () => {
   it('accepts an optional context', () => {
     expect(() => CardSchema.parse({ id: 'a', label: 'Apple', context: 'Fruit' })).not.toThrow();
   });
+  it('accepts an optional description', () => {
+    expect(() =>
+      CardSchema.parse({ id: 'a', label: 'Apple', description: 'A round red fruit.' }),
+    ).not.toThrow();
+  });
   it('rejects an empty id', () => {
     expect(() => CardSchema.parse({ id: '', label: 'x' })).toThrow();
   });
