@@ -6,7 +6,7 @@ import {
   ForbiddenError,
   NotFoundError,
   UnauthorizedError,
-  loadOwnedStudy,
+  loadAccessibleStudy,
   requireSessionUser,
 } from '@/lib/repo/access';
 
@@ -51,7 +51,7 @@ export async function GET(
   try {
     const user = await requireSessionUser();
     const { id } = await ctx.params;
-    await loadOwnedStudy(id, user.id);
+    await loadAccessibleStudy(id, user.id);
     return NextResponse.json({ submissions: await listSubmissions(id) });
   } catch (e) {
     if (e instanceof UnauthorizedError) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -68,7 +68,7 @@ export async function DELETE(
   try {
     const user = await requireSessionUser();
     const { id } = await ctx.params;
-    await loadOwnedStudy(id, user.id);
+    await loadAccessibleStudy(id, user.id);
     await resetSubmissions(id);
     return NextResponse.json({ ok: true });
   } catch (e) {

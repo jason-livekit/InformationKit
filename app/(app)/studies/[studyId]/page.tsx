@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { loadOwnedStudy, requireSessionUser } from '@/lib/repo/access';
+import { loadAccessibleStudy, requireSessionUser } from '@/lib/repo/access';
 import { listSubmissions, countSubmissions } from '@/lib/repo/submissions';
 import { aggregate } from '@/lib/card-sort/aggregate';
 import { Badge } from '@/components/bytes/Badge';
@@ -31,7 +31,7 @@ export default async function StudyPage({
 
   let study, project;
   try {
-    ({ study, project } = await loadOwnedStudy(studyId, user.id));
+    ({ study, project } = await loadAccessibleStudy(studyId, user.id));
   } catch {
     notFound();
   }

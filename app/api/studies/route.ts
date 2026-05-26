@@ -4,7 +4,7 @@ import {
   ForbiddenError,
   NotFoundError,
   UnauthorizedError,
-  loadOwnedProject,
+  loadProjectAccess,
   requireSessionUser,
 } from '@/lib/repo/access';
 import { createStudy } from '@/lib/repo/studies';
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null);
     const parsed = CreateInput.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
-    await loadOwnedProject(parsed.data.projectId, user.id);
+    await loadProjectAccess(parsed.data.projectId, user.id);
     const study = await createStudy({
       projectId: parsed.data.projectId,
       name: parsed.data.name,

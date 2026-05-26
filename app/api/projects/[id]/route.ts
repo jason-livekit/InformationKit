@@ -5,6 +5,7 @@ import {
   NotFoundError,
   UnauthorizedError,
   loadOwnedProject,
+  loadProjectAccess,
   requireSessionUser,
 } from '@/lib/repo/access';
 import { deleteProject, updateProject } from '@/lib/repo/projects';
@@ -32,7 +33,7 @@ export async function PATCH(
   try {
     const user = await requireSessionUser();
     const { id } = await ctx.params;
-    await loadOwnedProject(id, user.id);
+    await loadProjectAccess(id, user.id);
     const body = await request.json().catch(() => null);
     const parsed = UpdateInput.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });

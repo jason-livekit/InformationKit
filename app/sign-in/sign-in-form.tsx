@@ -38,7 +38,7 @@ export function SignInForm({ next }: SignInFormProps) {
       const res = await fetch('/api/auth/magic-link/request', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, next }),
       });
       const body = (await res.json().catch(() => ({}))) as RequestResponse;
       if (!res.ok) {
