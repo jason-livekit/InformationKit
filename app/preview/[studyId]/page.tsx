@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { loadOwnedStudy, requireSessionUser } from '@/lib/repo/access';
+import { loadAccessibleStudy, requireSessionUser } from '@/lib/repo/access';
 import { PreviewSortClient } from './preview-sort-client';
 
 export const dynamic = 'force-dynamic';
@@ -13,7 +13,7 @@ export default async function PreviewPage({
   const { studyId } = await params;
   let study;
   try {
-    ({ study } = await loadOwnedStudy(studyId, user.id));
+    ({ study } = await loadAccessibleStudy(studyId, user.id));
   } catch {
     notFound();
   }

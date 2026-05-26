@@ -8,7 +8,15 @@ export const runtime = 'nodejs';
 
 const Input = z.object({
   email: z.string().email(),
+  next: z.string().optional(),
 });
+
+/** Only allow same-site relative paths as post-sign-in redirects (guards against open redirects). */
+function safeNext(next: string | undefined): string | null {
+  if (!next) return null;
+  if (!next.startsWith('/') || next.startsWith('//') || next.startsWith('/\\')) return null;
+  return next;
+}
 
 export async function POST(request: Request) {
   let body: unknown;
@@ -22,10 +30,13 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Invalid email' }, { status: 400 });
   }
   const { email } = parsed.data;
+  const next = safeNext(parsed.data.next);
   const { token, expiresAt } = await issueMagicToken(email);
 
   const origin = new URL(request.url).origin;
-  const verifyUrl = `${origin}/sign-in/verify?token=${encodeURIComponent(token)}`;
+  const verifyUrl =
+    `${origin}/sign-in/verify?token=${encodeURIComponent(token)}` +
+    (next ? `&next=${encodeURIComponent(next)}` : '');
 
   const result = await sendMagicLink({ email, url: verifyUrl, expiresAt });
 

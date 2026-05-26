@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireSessionUser, UnauthorizedError } from '@/lib/repo/access';
-import { createProject, listProjectsByOwner } from '@/lib/repo/projects';
+import { createProject, listProjectsForUser } from '@/lib/repo/projects';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -14,7 +14,7 @@ const CreateInput = z.object({
 export async function GET() {
   try {
     const user = await requireSessionUser();
-    return NextResponse.json({ projects: await listProjectsByOwner(user.id) });
+    return NextResponse.json({ projects: await listProjectsForUser(user.id) });
   } catch (e) {
     if (e instanceof UnauthorizedError) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
