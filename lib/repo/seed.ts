@@ -59,9 +59,9 @@ async function doSeed(): Promise<void> {
     const study = StudySchema.parse({
       id: DEMO_STUDY_ID,
       projectId: DEMO_PROJECT_ID,
-      name: 'Sessions UI · Information architecture',
+      name: 'LiveKit Cloud terminology · Information architecture',
       description:
-        'Help us figure out how to organize the metrics, configuration, and events that show up in a session view.',
+        'Help us figure out how to group and prioritize the concepts across LiveKit Cloud.',
       type: 'card-sort',
       status: 'open',
       shareSlug: DEMO_SHARE_SLUG,

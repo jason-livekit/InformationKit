@@ -1,9 +1,14 @@
-import type { Group } from '@/lib/repo/schemas';
+/** A group in the local draft. `notUsefulCount` cards at the end of `cardIds` are marked not useful. */
+export interface DraftGroup {
+  id: string;
+  label: string;
+  cardIds: string[];
+  notUsefulCount: number;
+}
 
 export interface DraftState {
   unsorted: string[];
-  notUsefulCount: number;
-  groups: Group[];
+  groups: DraftGroup[];
 }
 
 const LEGACY_KEY = 'card-sort:draft';

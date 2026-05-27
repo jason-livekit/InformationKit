@@ -4,6 +4,7 @@ export const CardSchema = z.object({
   id: z.string().min(1),
   label: z.string().min(1),
   context: z.string().optional(),
+  description: z.string().optional(),
 });
 
 export const GroupSchema = z.object({
