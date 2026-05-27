@@ -9,6 +9,7 @@ import { Badge } from '@/components/bytes/Badge';
 import { SignInButton } from '@/components/auth/sign-in-button';
 import { CirclePlusIcon, ArrowRightIcon } from '@/icons/react';
 import { DotFill } from '@/components/card-sort/dot-fill';
+import { StoreStatusBanner } from '@/components/custom/store-status-banner';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,6 +31,7 @@ export default async function Home() {
   const demo = await getStudy(DEMO_STUDY_ID);
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-8 px-6 py-10">
+      <StoreStatusBanner />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">

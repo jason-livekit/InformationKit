@@ -11,6 +11,7 @@ import { Badge } from '@/components/bytes/Badge';
 import { ArrowLeftIcon, CirclePlusIcon } from '@/icons/react';
 import { ProjectHeader } from './project-header';
 import { MembersPanel, type MemberRow } from './members-panel';
+import { StoreStatusBanner } from '@/components/custom/store-status-banner';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,6 +49,7 @@ export default async function ProjectPage({
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-10">
+      <StoreStatusBanner />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex flex-col gap-2">
           <Link href="/" className="text-fg3 hover:text-fg1 inline-flex w-fit items-center gap-1 text-xs">
