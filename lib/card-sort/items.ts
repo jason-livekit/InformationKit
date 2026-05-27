@@ -1,223 +1,307 @@
 import type { Card } from './types';
 
 /**
- * Cards to sort. Scoped to metrics only — session/identity, agent configuration, per-engine
- * model/provider config, and event-stream entries have been pruned so the sort focuses on
- * the information architecture for usage and performance data.
+ * The default demo card set: LiveKit Cloud terminology. Each card is a term whose
+ * definition is reachable via the info-icon popover on the card. Participants sort
+ * and group the terms to surface how they think the product's vocabulary fits together.
  *
- * Keep this list ordered from "high-level / overview" to "low-level / per-provider" so that
- * the initial center column has a sensible starting order before the user touches anything.
+ * The order below roughly follows the order the terms were supplied in; participants
+ * are free to reorder everything, so the starting order is just a neutral baseline.
  */
 export const CARDS: Card[] = [
-  // Top-line latency / turn metrics
   {
-    id: 'avg-e2e-latency',
-    label: 'Avg E2E latency',
+    id: 'agent',
+    label: 'Agent',
+    description: 'AI agents interact with users through realtime media and data streams.',
+  },
+  {
+    id: 'api-key',
+    label: 'API key',
+    description: 'A unique, alphanumeric code used to identify and authenticate.',
+  },
+  {
+    id: 'secret',
+    label: 'Secret',
+    description: 'A secure credential used to authenticate, authorize, and encrypt data.',
+  },
+  {
+    id: 'environment-variable',
+    label: 'Environment variable',
     description:
-      'Mean end-to-end response latency across the session: time from the user finishing speaking to the agent starting to speak back.',
+      'A dynamic name-value pair set outside of an application’s source code.',
   },
   {
-    id: 'avg-llm-ttft',
-    label: 'Avg LLM TTFT',
+    id: 'webhook',
+    label: 'Webhook',
+    description: 'An automated, event-driven message sent between apps.',
+  },
+  {
+    id: 'telephony',
+    label: 'Telephony',
     description:
-      'Time to first token from the LLM — how long after the prompt was sent until the first response token streamed back. Lower is faster perceived response.',
+      'The delivery of voice calls, SMS, and multimedia messaging over the internet.',
   },
   {
-    id: 'avg-tts-ttfb',
-    label: 'Avg TTS TTFB',
+    id: 'sip',
+    label: 'SIP',
     description:
-      'Time to first byte from TTS — how long after we asked the voice provider to speak until the first audio chunk arrived.',
+      'Session Initiation Protocol, the digital "signaling" rulebook used to establish, manage, and terminate real-time multimedia communication sessions (like voice and video calls) over the internet.',
   },
   {
-    id: 'avg-transcription-delay',
-    label: 'Avg transcription delay',
+    id: 'trunk',
+    label: 'Trunk',
     description:
-      'Lag between the user finishing a phrase and the STT producing the final transcript the LLM acts on.',
+      'A virtual connection (an Elastic SIP Trunk) that bridges your local business phone system to the internet.',
   },
   {
-    id: 'avg-end-of-turn-delay',
-    label: 'Avg end of turn delay',
+    id: 'dispatch-rule',
+    label: 'Dispatch rule',
+    description: 'Determines which room each inbound SIP caller joins.',
+  },
+  {
+    id: 'egress',
+    label: 'Egress',
     description:
-      'How long after the user stops talking before the agent considers their turn over and starts responding.',
+      'An API that exports live media out of a real-time WebRTC session and sends it to an external destination.',
   },
   {
-    id: 'avg-on-user-turn-completed-delay',
-    label: 'Avg on_user_turn_completed delay',
+    id: 'ingress',
+    label: 'Ingress',
+    description: 'An API that imports live external media streams into a LiveKit room.',
+  },
+  {
+    id: 'session',
+    label: 'Session',
     description:
-      'Time spent inside the user-supplied on_user_turn_completed hook — custom logic that runs after every user turn (e.g. RAG lookups).',
+      'An active, real-time connection between an application (or user) and a LiveKit server.',
   },
-
-  // Interruption metrics
   {
-    id: 'avg-detection-delay',
-    label: 'Avg detection delay',
+    id: 'builder',
+    label: 'Builder',
     description:
-      'How long it took the agent to notice that the user had started speaking over it (barge-in). Lower means snappier interruption handling.',
+      'Lets you prototype and deploy simple voice agents through your browser, without writing any code.',
   },
   {
-    id: 'interruptions',
-    label: 'Interruptions',
-    description: 'Count of times the user successfully interrupted the agent mid-utterance.',
+    id: 'console',
+    label: 'Console',
+    description: 'A web-based tool that allows you to debug your agents in realtime.',
   },
   {
-    id: 'backchannels',
-    label: 'Backchannels',
+    id: 'latency',
+    label: 'Latency',
+    description: 'The time delay between a user’s action and a system’s response.',
+  },
+  {
+    id: 'uptime',
+    label: 'Uptime',
     description:
-      'Short user utterances (“mm-hmm”, “yeah”) that the agent recognized as acknowledgments rather than full interruptions.',
+      'The amount of time a machine, system, or website is fully operational and available to users.',
   },
-
-  // Usage rollups
   {
-    id: 'llm-input-output-tokens',
-    label: 'LLM input / output tokens',
+    id: 'embed-widget',
+    label: 'Embed widget',
+    description: 'Adds a LiveKit Cloud agent to any website without building a frontend.',
+  },
+  {
+    id: 'version',
+    label: 'Version',
+    description: 'An iterative saved state for a deployed AI agent.',
+  },
+  {
+    id: 'deployment',
+    label: 'Deployment',
+    description: 'Push code to the cloud platform so it’s accessible to users.',
+  },
+  {
+    id: 'build',
+    label: 'Build',
+    description: 'A compiled container image of an AI voice or video agent.',
+  },
+  {
+    id: 'log',
+    label: 'Log',
     description:
-      'Total tokens sent to and received from the LLM across the whole session. Primary driver of LLM cost.',
+      'A recorded diagnostic or system event that tracks the lifecycle, behavior, and errors.',
   },
   {
-    id: 'tts-characters',
-    label: 'TTS characters',
+    id: 'trace',
+    label: 'Trace',
     description:
-      'Total characters synthesized by the TTS provider over the session. Most TTS pricing is per-character.',
+      'An execution trail that logs and maps out the lifecycle of a realtime session over time.',
   },
   {
-    id: 'stt-duration',
-    label: 'STT duration',
+    id: 'region',
+    label: 'Region',
     description:
-      'Total audio time submitted to STT. Most STT pricing is per-minute of audio processed.',
-  },
-
-  // LLM detail metrics
-  {
-    id: 'llm-input-tokens',
-    label: 'Input tokens',
-    context: 'LLM',
-    description: 'Tokens sent to the LLM as prompt context, summed across all turns.',
+      'A specific geographic data center location where endpoints are hosted.',
   },
   {
-    id: 'llm-input-text-tokens',
-    label: 'Input text tokens',
-    context: 'LLM',
+    id: 'observability',
+    label: 'Observability',
+    description: 'Comprehensive tracking and analysis of your sessions.',
+  },
+  {
+    id: 'agent-insight',
+    label: 'Agent insight',
     description:
-      'Subset of input tokens that came from plain text (transcripts, system prompt, history).',
+      'A built-in observability stack optimized for voice agents that includes transcripts, traces, and logs in a unified timeline with actual audio recordings.',
   },
   {
-    id: 'llm-input-audio-tokens',
-    label: 'Input audio tokens',
-    context: 'LLM',
+    id: 'webrtc',
+    label: 'WebRTC',
     description:
-      'Subset of input tokens for raw audio frames sent to a speech-native LLM (e.g. Realtime API).',
+      'The core transport layer that enables low-latency, real-time streaming of audio, video, and data over the web.',
   },
   {
-    id: 'llm-input-image-tokens',
-    label: 'Input image tokens',
-    context: 'LLM',
-    description: 'Subset of input tokens consumed by images attached to the prompt.',
-  },
-  {
-    id: 'llm-input-cached-tokens',
-    label: 'Input cached tokens',
-    context: 'LLM',
+    id: 'realtime-transport',
+    label: 'Realtime transport',
     description:
-      'Input tokens that were served from the provider’s prompt cache. Usually billed at a steep discount.',
+      'The core transport layer that enables low-latency, real-time streaming of audio, video, and data.',
   },
   {
-    id: 'llm-input-cached-text-tokens',
-    label: 'Input cached text tokens',
-    context: 'LLM',
-    description: 'Cached-input tokens that were specifically text.',
+    id: 'inference',
+    label: 'Inference',
+    description: 'Provides access to many of the best models and providers for voice agents.',
   },
   {
-    id: 'llm-input-cached-audio-tokens',
-    label: 'Input cached audio tokens',
-    context: 'LLM',
-    description: 'Cached-input tokens that were specifically audio.',
+    id: 'custom-voice',
+    label: 'Custom voice',
+    description: 'Lets you create a voice clone from a short audio clip.',
   },
   {
-    id: 'llm-input-cached-image-tokens',
-    label: 'Input cached image tokens',
-    context: 'LLM',
-    description: 'Cached-input tokens that were specifically images.',
-  },
-  {
-    id: 'llm-output-tokens',
-    label: 'Output tokens',
-    context: 'LLM',
+    id: 'cloned-voice',
+    label: 'Cloned voice',
     description:
-      'Tokens generated by the LLM across all turns. Drives output-side cost and response length.',
+      'A synthetic voice generated from a short audio sample of a real person, used to produce speech that mimics their tone and style.',
   },
   {
-    id: 'llm-output-text-tokens',
-    label: 'Output text tokens',
-    context: 'LLM',
-    description: 'Subset of output tokens that were text (the spoken response, transcribed).',
+    id: 'phone-number',
+    label: 'Phone number',
   },
   {
-    id: 'llm-output-audio-tokens',
-    label: 'Output audio tokens',
-    context: 'LLM',
-    description: 'Subset of output tokens for raw audio emitted by a speech-native LLM.',
-  },
-  {
-    id: 'llm-session-duration',
-    label: 'Session duration',
-    context: 'LLM',
+    id: 'simulation',
+    label: 'Simulation',
     description:
-      'How long the LLM connection was held open this session. Relevant for Realtime / streaming APIs that bill on connection time.',
+      'A controlled, scripted run of an AI agent against synthetic inputs used to test behavior without involving real users.',
   },
-
-  // TTS detail metrics
   {
-    id: 'tts-audio-duration',
-    label: 'Audio duration',
-    context: 'TTS',
+    id: 'evaluation',
+    label: 'Evaluation',
     description:
-      'Total seconds of audio produced by TTS — roughly, how long the agent was talking.',
+      'The process of scoring an agent’s performance against defined criteria across one or more test scenarios.',
   },
   {
-    id: 'tts-characters-count',
-    label: 'Characters count',
-    context: 'TTS',
-    description: 'Total characters submitted to the TTS provider for synthesis.',
+    id: 'run',
+    label: 'Run',
+    description:
+      'A single execution of an agent, simulation, or evaluation, capturing inputs, outputs, traces, and metrics for that invocation.',
   },
   {
-    id: 'tts-input-tokens',
-    label: 'Input tokens',
-    context: 'TTS',
-    description: 'For token-billed TTS providers, tokens sent in (instead of characters).',
+    id: 'test-suite',
+    label: 'Test suite',
+    description:
+      'A collection of related scenarios and evaluations grouped together to validate an agent’s behavior across many situations.',
   },
   {
-    id: 'tts-output-tokens',
-    label: 'Output tokens',
-    context: 'TTS',
-    description: 'For token-billed TTS providers, tokens produced.',
-  },
-
-  // STT detail metrics
-  {
-    id: 'stt-audio-duration',
-    label: 'Audio duration',
-    context: 'STT',
-    description: 'Total seconds of user audio transcribed.',
+    id: 'scenario',
+    label: 'Scenario',
+    description:
+      'A specific test case defining inputs, expected behavior, and pass criteria for evaluating an agent.',
   },
   {
-    id: 'stt-input-tokens',
-    label: 'Input tokens',
-    context: 'STT',
-    description: 'For token-billed STT providers, tokens charged on the input side.',
+    id: 'analytics',
+    label: 'Analytics',
+    description:
+      'Aggregated data and visualizations that surface usage, performance, and quality trends across sessions, agents, and projects.',
   },
   {
-    id: 'stt-output-tokens',
-    label: 'Output tokens',
-    context: 'STT',
-    description: 'For token-billed STT providers, tokens charged on the output (transcript) side.',
+    id: 'participant',
+    label: 'Participant',
+    description:
+      'An entity (user, agent, or service) connected to a LiveKit room that can publish or subscribe to audio, video, or data tracks.',
   },
-
-  // Interruption detail metrics
   {
-    id: 'interruption-total-requests',
-    label: 'Total requests',
-    context: 'Interruption',
-    description: 'How many times turn-detection was invoked across the session.',
+    id: 'data-transfer',
+    label: 'Data transfer',
+    description:
+      'The volume of media and data bytes exchanged between participants and LiveKit’s infrastructure, often used as a billing and usage metric.',
+  },
+  {
+    id: 'room',
+    label: 'Room',
+    description: 'A virtual, real-time communication space where a session takes place.',
+  },
+  {
+    id: 'workspace',
+    label: 'Workspace',
+    description:
+      'The dashboard-level container that groups your LiveKit projects, agents, members, and settings under one organization.',
+  },
+  {
+    id: 'event',
+    label: 'Event',
+    description:
+      'A discrete, timestamped occurrence within a session (participant joined, track published, agent state changed, etc.) used for observability and automation.',
+  },
+  {
+    id: 'metric',
+    label: 'Metric',
+    description:
+      'A quantitative measurement (latency, packet loss, audio level, token usage, etc.) collected during a session for monitoring and analytics.',
+  },
+  {
+    id: 'track',
+    label: 'Track',
+    description:
+      'An individual audio, video, or data stream published by a participant into a LiveKit room.',
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    description:
+      'Configuration for a project, agent, workspace, or account in the LiveKit dashboard.',
+  },
+  {
+    id: 'billing',
+    label: 'Billing',
+    description:
+      'The section of the dashboard where you manage payment methods, plans, invoices, and charges for LiveKit usage.',
+  },
+  {
+    id: 'usage',
+    label: 'Usage',
+    description:
+      'A view of how much of each LiveKit resource (sessions, minutes, data transfer, inference, etc.) has been consumed over a given period.',
+  },
+  {
+    id: 'concurrency',
+    label: 'Concurrency',
+    description:
+      'The number of simultaneous sessions, participants, or agent instances active at one time.',
+  },
+  {
+    id: 'invoice',
+    label: 'Invoice',
+    description:
+      'A billed statement detailing LiveKit charges over a billing period, available for download in the dashboard.',
+  },
+  {
+    id: 'support',
+    label: 'Support',
+    description:
+      'The channel for contacting LiveKit’s team to get help with technical issues, account questions, or product feedback.',
+  },
+  {
+    id: 'model',
+    label: 'Model',
+    description:
+      'A specific AI model (e.g., STT, TTS, LLM) available through LiveKit Inference or configured directly for an agent.',
+  },
+  {
+    id: 'provider',
+    label: 'Provider',
+    description:
+      'The underlying vendor (e.g., OpenAI, Deepgram, ElevenLabs) that supplies a model accessible through LiveKit Inference.',
   },
 ];
 
