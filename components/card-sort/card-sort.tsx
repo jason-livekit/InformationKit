@@ -8,6 +8,7 @@ import {
   MouseSensor,
   TouchSensor,
   closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -15,9 +16,23 @@ import {
   type DragStartEvent,
 } from '@dnd-kit/core';
 import { restrictToWindowEdges } from '@dnd-kit/modifiers';
-import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  sortableKeyboardCoordinates,
+  useSortable,
+} from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 import { Button } from '@/components/bytes/Button';
+import { Toaster, toast } from '@/components/bytes/Toaster';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipPortal,
+  TooltipTrigger,
+} from '@/components/bytes/Tooltip';
 import { InstructionsStep } from '@/components/common/Instructions';
 import { Badge } from '@/components/bytes/Badge';
 import {
@@ -65,30 +80,74 @@ export interface CardSortProps {
 }
 
 const UNSORTED = 'unsorted';
-const NOT_USEFUL = 'notUseful';
+const NEW_GROUP = 'newGroup';
 const GROUP_PREFIX = 'group:';
+const GROUP_NU_PREFIX = 'groupNotUseful:';
+const GROUP_SORT_PREFIX = 'groupSort:';
 
 function uid(prefix: string) {
   return `${prefix}${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
-function newGroup(): Group {
-  return { id: uid('g_'), label: 'Untitled group', cardIds: [] };
+/** A group plus the local-only split: the last `notUsefulCount` cardIds are marked not useful. */
+interface GroupState {
+  id: string;
+  label: string;
+  cardIds: string[];
+  notUsefulCount: number;
 }
+
+function newGroup(cardIds: string[] = []): GroupState {
+  return { id: uid('g_'), label: 'Untitled group', cardIds, notUsefulCount: 0 };
+}
+
+const groupUseful = (g: GroupState) => g.cardIds.slice(0, g.cardIds.length - g.notUsefulCount);
+const groupNotUseful = (g: GroupState) => g.cardIds.slice(g.cardIds.length - g.notUsefulCount);
 
 interface State {
   unsorted: string[];
-  notUsefulCount: number;
-  groups: Group[];
+  groups: GroupState[];
 }
 
 function defaultStateFor(cards: CardItem[], predefinedGroups: Group[]): State {
   const inGroups = new Set(predefinedGroups.flatMap((g) => g.cardIds));
   return {
     unsorted: cards.map((c) => c.id).filter((id) => !inGroups.has(id)),
-    notUsefulCount: 0,
-    groups: predefinedGroups.map((g) => ({ ...g, cardIds: [...g.cardIds] })),
+    groups: predefinedGroups.map((g) => ({
+      id: g.id,
+      label: g.label,
+      cardIds: [...g.cardIds],
+      notUsefulCount: 0,
+    })),
   };
+}
+
+function isContainerId(id: string): boolean {
+  return (
+    id === UNSORTED ||
+    id === NEW_GROUP ||
+    id.startsWith(GROUP_PREFIX) ||
+    id.startsWith(GROUP_NU_PREFIX)
+  );
+}
+
+/** Remove a card from its source container, fixing up a group's not-useful count if needed. */
+function removeCard(next: State, cardId: string, fromContainer: string): void {
+  if (fromContainer === UNSORTED) {
+    const idx = next.unsorted.indexOf(cardId);
+    if (idx !== -1) next.unsorted.splice(idx, 1);
+    return;
+  }
+  if (fromContainer.startsWith(GROUP_PREFIX) || fromContainer.startsWith(GROUP_NU_PREFIX)) {
+    const gid = fromContainer.slice(fromContainer.indexOf(':') + 1);
+    const g = next.groups.find((x) => x.id === gid);
+    if (!g) return;
+    const idx = g.cardIds.indexOf(cardId);
+    if (idx === -1) return;
+    const usefulLen = g.cardIds.length - g.notUsefulCount;
+    if (idx >= usefulLen) g.notUsefulCount = Math.max(0, g.notUsefulCount - 1);
+    g.cardIds.splice(idx, 1);
+  }
 }
 
 export function CardSort({
@@ -121,50 +180,39 @@ export function CardSort({
   React.useEffect(() => {
     setMounted(true);
   }, []);
-  const columnRef = React.useRef<HTMLDivElement>(null);
-  const notUsefulRef = React.useRef<HTMLDivElement>(null);
-  const cardRefs = React.useRef<Record<string, HTMLDivElement | null>>({});
-  const dragStartYRef = React.useRef<number>(0);
-  const dragStartNotUsefulCountRef = React.useRef<number>(0);
+
+  // Per-group not-useful divider drag bookkeeping. Only one divider drags at a time.
+  const dividerDragRef = React.useRef<{
+    groupId: string | null;
+    startY: number;
+    startCount: number;
+    total: number;
+  }>({ groupId: null, startY: 0, startCount: 0, total: 0 });
 
   React.useEffect(() => {
     if (readOnly) return;
     const draft = loadDraft(draftKey);
-    if (draft) {
-      const cleanUnsorted = draft.unsorted.filter((id) => knownIds.has(id));
-      const cleanGroups = draft.groups.map((g) => ({
-        ...g,
-        cardIds: g.cardIds.filter((id) => knownIds.has(id)),
-      }));
-      const inGroups = new Set(cleanGroups.flatMap((g) => g.cardIds));
-      const allKnown = cards.map((c) => c.id).filter((id) => !inGroups.has(id));
-      const merged: string[] = [];
-      const cleanSet = new Set(cleanUnsorted);
-      for (const id of cleanUnsorted) {
-        if (!inGroups.has(id)) merged.push(id);
-      }
-      for (const id of allKnown) {
-        if (!cleanSet.has(id)) merged.push(id);
-      }
-      setState({
-        unsorted: merged,
-        notUsefulCount: Math.min(draft.notUsefulCount ?? 0, merged.length),
-        groups: cleanGroups,
-      });
-    }
+    if (!draft) return;
+    const cleanGroups: GroupState[] = draft.groups.map((g) => {
+      const cardIds = g.cardIds.filter((id) => knownIds.has(id));
+      return {
+        id: g.id,
+        label: g.label,
+        cardIds,
+        notUsefulCount: Math.min(Math.max(g.notUsefulCount ?? 0, 0), cardIds.length),
+      };
+    });
+    const inGroups = new Set(cleanGroups.flatMap((g) => g.cardIds));
+    const cleanUnsorted = draft.unsorted.filter((id) => knownIds.has(id) && !inGroups.has(id));
+    const present = new Set<string>([...inGroups, ...cleanUnsorted]);
+    const missing = cards.map((c) => c.id).filter((id) => !present.has(id));
+    setState({ unsorted: [...cleanUnsorted, ...missing], groups: cleanGroups });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey]);
 
   React.useEffect(() => {
     if (readOnly) return;
-    saveDraft(
-      {
-        unsorted: state.unsorted,
-        notUsefulCount: state.notUsefulCount,
-        groups: state.groups,
-      },
-      draftKey,
-    );
+    saveDraft({ unsorted: state.unsorted, groups: state.groups }, draftKey);
   }, [state, draftKey, readOnly]);
 
   const sensors = useSensors(
@@ -173,64 +221,99 @@ export function CardSort({
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
-  const splitIndex = state.unsorted.length - state.notUsefulCount;
-  const usefulIds = state.unsorted.slice(0, splitIndex);
-  const notUsefulIds = state.unsorted.slice(splitIndex);
-
   const findContainer = React.useCallback(
     (id: string): string | null => {
-      if (id === UNSORTED || id === NOT_USEFUL) return id;
-      if (id.startsWith(GROUP_PREFIX)) return id;
-      const inUseful = usefulIds.indexOf(id) !== -1;
-      if (inUseful) return UNSORTED;
-      const inNotUseful = notUsefulIds.indexOf(id) !== -1;
-      if (inNotUseful) return NOT_USEFUL;
+      if (isContainerId(id) || id.startsWith(GROUP_SORT_PREFIX)) return id;
+      if (state.unsorted.includes(id)) return UNSORTED;
       for (const g of state.groups) {
-        if (g.cardIds.includes(id)) return GROUP_PREFIX + g.id;
+        const idx = g.cardIds.indexOf(id);
+        if (idx !== -1) {
+          const usefulLen = g.cardIds.length - g.notUsefulCount;
+          return (idx < usefulLen ? GROUP_PREFIX : GROUP_NU_PREFIX) + g.id;
+        }
       }
       return null;
     },
-    [usefulIds, notUsefulIds, state.groups],
+    [state.unsorted, state.groups],
+  );
+
+  const groupById = React.useCallback(
+    (containerId: string): GroupState | undefined => {
+      const gid = containerId.slice(containerId.indexOf(':') + 1);
+      return state.groups.find((g) => g.id === gid);
+    },
+    [state.groups],
+  );
+
+  const containerLength = React.useCallback(
+    (id: string): number => {
+      if (id === UNSORTED) return state.unsorted.length;
+      if (id.startsWith(GROUP_PREFIX)) {
+        const g = groupById(id);
+        return g ? g.cardIds.length - g.notUsefulCount : 0;
+      }
+      if (id.startsWith(GROUP_NU_PREFIX)) {
+        return groupById(id)?.notUsefulCount ?? 0;
+      }
+      return 0;
+    },
+    [state.unsorted.length, groupById],
+  );
+
+  const indexInContainer = React.useCallback(
+    (cardId: string, containerId: string): number => {
+      if (containerId === UNSORTED) return state.unsorted.indexOf(cardId);
+      const g = groupById(containerId);
+      if (!g) return -1;
+      if (containerId.startsWith(GROUP_PREFIX)) return groupUseful(g).indexOf(cardId);
+      if (containerId.startsWith(GROUP_NU_PREFIX)) return groupNotUseful(g).indexOf(cardId);
+      return -1;
+    },
+    [state.unsorted, groupById],
+  );
+
+  /** Resolve any over-id (container, group-sort handle, or card) to the group it belongs to. */
+  const resolveGroupId = React.useCallback(
+    (overId: string): string | null => {
+      if (
+        overId.startsWith(GROUP_SORT_PREFIX) ||
+        overId.startsWith(GROUP_PREFIX) ||
+        overId.startsWith(GROUP_NU_PREFIX)
+      ) {
+        return overId.slice(overId.indexOf(':') + 1);
+      }
+      for (const g of state.groups) {
+        if (g.cardIds.includes(overId)) return g.id;
+      }
+      return null;
+    },
+    [state.groups],
   );
 
   const moveCardToContainer = React.useCallback(
     (cardId: string, fromContainer: string, toContainer: string, toIndex: number) => {
       setState((prev) => {
         const next = structuredClone(prev) as State;
-        const removeFrom = (id: string) => {
-          if (id === UNSORTED) {
-            const idx = next.unsorted.indexOf(cardId);
-            if (idx !== -1 && idx < next.unsorted.length - next.notUsefulCount) {
-              next.unsorted.splice(idx, 1);
-            }
-          } else if (id === NOT_USEFUL) {
-            const idx = next.unsorted.indexOf(cardId);
-            if (idx !== -1 && idx >= next.unsorted.length - next.notUsefulCount) {
-              next.unsorted.splice(idx, 1);
-              next.notUsefulCount = Math.max(0, next.notUsefulCount - 1);
-            }
-          } else if (id.startsWith(GROUP_PREFIX)) {
-            const gid = id.slice(GROUP_PREFIX.length);
-            const g = next.groups.find((g) => g.id === gid);
-            if (g) g.cardIds = g.cardIds.filter((c) => c !== cardId);
-          }
-        };
-        removeFrom(fromContainer);
+        removeCard(next, cardId, fromContainer);
         if (toContainer === UNSORTED) {
-          const usefulLen = next.unsorted.length - next.notUsefulCount;
-          const insertAt = Math.min(Math.max(toIndex, 0), usefulLen);
+          const insertAt = Math.min(Math.max(toIndex, 0), next.unsorted.length);
           next.unsorted.splice(insertAt, 0, cardId);
-        } else if (toContainer === NOT_USEFUL) {
-          const usefulLen = next.unsorted.length - next.notUsefulCount;
-          const localIdx = Math.min(Math.max(toIndex, 0), next.notUsefulCount);
-          next.unsorted.splice(usefulLen + localIdx, 0, cardId);
-          next.notUsefulCount += 1;
         } else if (toContainer.startsWith(GROUP_PREFIX)) {
           const gid = toContainer.slice(GROUP_PREFIX.length);
-          const g = next.groups.find((g) => g.id === gid);
+          const g = next.groups.find((x) => x.id === gid);
           if (g) {
-            const insertAt = Math.min(Math.max(toIndex, 0), g.cardIds.length);
+            const usefulLen = g.cardIds.length - g.notUsefulCount;
+            const insertAt = Math.min(Math.max(toIndex, 0), usefulLen);
             g.cardIds.splice(insertAt, 0, cardId);
+          }
+        } else if (toContainer.startsWith(GROUP_NU_PREFIX)) {
+          const gid = toContainer.slice(GROUP_NU_PREFIX.length);
+          const g = next.groups.find((x) => x.id === gid);
+          if (g) {
+            const usefulLen = g.cardIds.length - g.notUsefulCount;
+            const localIdx = Math.min(Math.max(toIndex, 0), g.notUsefulCount);
+            g.cardIds.splice(usefulLen + localIdx, 0, cardId);
+            g.notUsefulCount += 1;
           }
         }
         return next;
@@ -239,23 +322,35 @@ export function CardSort({
     },
     [],
   );
+
+  const moveCardToNewGroup = React.useCallback((cardId: string, fromContainer: string) => {
+    setState((prev) => {
+      const next = structuredClone(prev) as State;
+      removeCard(next, cardId, fromContainer);
+      next.groups.push(newGroup([cardId]));
+      return next;
+    });
+    setHasChanges(true);
+  }, []);
 
   const reorderInContainer = React.useCallback(
     (containerId: string, fromIndex: number, toIndex: number) => {
       setState((prev) => {
         const next = structuredClone(prev) as State;
         if (containerId === UNSORTED) {
-          const usefulLen = next.unsorted.length - next.notUsefulCount;
-          const useful = arrayMove(next.unsorted.slice(0, usefulLen), fromIndex, toIndex);
-          next.unsorted = [...useful, ...next.unsorted.slice(usefulLen)];
-        } else if (containerId === NOT_USEFUL) {
-          const usefulLen = next.unsorted.length - next.notUsefulCount;
-          const notUseful = arrayMove(next.unsorted.slice(usefulLen), fromIndex, toIndex);
-          next.unsorted = [...next.unsorted.slice(0, usefulLen), ...notUseful];
-        } else if (containerId.startsWith(GROUP_PREFIX)) {
-          const gid = containerId.slice(GROUP_PREFIX.length);
-          const g = next.groups.find((g) => g.id === gid);
-          if (g) g.cardIds = arrayMove(g.cardIds, fromIndex, toIndex);
+          next.unsorted = arrayMove(next.unsorted, fromIndex, toIndex);
+        } else {
+          const gid = containerId.slice(containerId.indexOf(':') + 1);
+          const g = next.groups.find((x) => x.id === gid);
+          if (g) {
+            if (containerId.startsWith(GROUP_PREFIX)) {
+              const useful = arrayMove(groupUseful(g), fromIndex, toIndex);
+              g.cardIds = [...useful, ...groupNotUseful(g)];
+            } else {
+              const nu = arrayMove(groupNotUseful(g), fromIndex, toIndex);
+              g.cardIds = [...groupUseful(g), ...nu];
+            }
+          }
         }
         return next;
       });
@@ -264,78 +359,85 @@ export function CardSort({
     [],
   );
 
-  const indexInContainer = React.useCallback(
-    (cardId: string, containerId: string): number => {
-      if (containerId === UNSORTED) return usefulIds.indexOf(cardId);
-      if (containerId === NOT_USEFUL) return notUsefulIds.indexOf(cardId);
-      if (containerId.startsWith(GROUP_PREFIX)) {
-        const gid = containerId.slice(GROUP_PREFIX.length);
-        const g = state.groups.find((g) => g.id === gid);
-        return g ? g.cardIds.indexOf(cardId) : -1;
-      }
-      return -1;
-    },
-    [usefulIds, notUsefulIds, state.groups],
-  );
+  const reorderGroups = React.useCallback((activeGid: string, overGid: string) => {
+    setState((prev) => {
+      const from = prev.groups.findIndex((g) => g.id === activeGid);
+      const to = prev.groups.findIndex((g) => g.id === overGid);
+      if (from === -1 || to === -1 || from === to) return prev;
+      return { ...prev, groups: arrayMove(prev.groups, from, to) };
+    });
+    setHasChanges(true);
+  }, []);
 
   const onDragStart = (event: DragStartEvent) => {
     setActiveId(String(event.active.id));
   };
 
-  const containerLength = React.useCallback(
-    (id: string) => {
-      if (id === UNSORTED) return usefulIds.length;
-      if (id === NOT_USEFUL) return notUsefulIds.length;
-      if (id.startsWith(GROUP_PREFIX)) {
-        const gid = id.slice(GROUP_PREFIX.length);
-        return state.groups.find((g) => g.id === gid)?.cardIds.length ?? 0;
-      }
-      return 0;
-    },
-    [usefulIds, notUsefulIds, state.groups],
-  );
-
   const onDragOver = (event: DragOverEvent) => {
     const { active, over } = event;
     if (!over) return;
-    const activeContainer = findContainer(String(active.id));
-    let overContainer = findContainer(String(over.id));
-    if (!activeContainer || !overContainer) return;
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
 
+    if (activeIdStr.startsWith(GROUP_SORT_PREFIX)) {
+      const activeGid = activeIdStr.slice(GROUP_SORT_PREFIX.length);
+      const overGid = resolveGroupId(overIdStr);
+      if (overGid && overGid !== activeGid) reorderGroups(activeGid, overGid);
+      return;
+    }
+
+    const activeContainer = findContainer(activeIdStr);
+    if (!activeContainer) return;
+    // Hovering the group's outer body targets that group's useful list.
+    const effectiveOverId = overIdStr.startsWith(GROUP_SORT_PREFIX)
+      ? GROUP_PREFIX + overIdStr.slice(GROUP_SORT_PREFIX.length)
+      : overIdStr;
+    let overContainer = findContainer(effectiveOverId);
+    if (!overContainer) return;
+    // New-group creation happens on drop, not while hovering.
+    if (overContainer === NEW_GROUP) return;
     if (activeContainer === overContainer) return;
 
-    const overIsContainer =
-      String(over.id) === UNSORTED ||
-      String(over.id) === NOT_USEFUL ||
-      String(over.id).startsWith(GROUP_PREFIX);
-    overContainer = overIsContainer ? String(over.id) : overContainer;
-
+    const overIsContainer = isContainerId(effectiveOverId);
+    overContainer = overIsContainer ? effectiveOverId : overContainer;
     const overIndex = overIsContainer
       ? containerLength(overContainer)
-      : indexInContainer(String(over.id), overContainer);
+      : indexInContainer(effectiveOverId, overContainer);
 
-    moveCardToContainer(String(active.id), activeContainer, overContainer, overIndex);
+    moveCardToContainer(activeIdStr, activeContainer, overContainer, overIndex);
   };
 
   const onDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
     if (!over) return;
-    const activeContainer = findContainer(String(active.id));
-    let overContainer = findContainer(String(over.id));
-    if (!activeContainer || !overContainer) return;
+    const activeIdStr = String(active.id);
+    const overIdStr = String(over.id);
 
-    const overIsContainer =
-      String(over.id) === UNSORTED ||
-      String(over.id) === NOT_USEFUL ||
-      String(over.id).startsWith(GROUP_PREFIX);
-    overContainer = overIsContainer ? String(over.id) : overContainer;
+    // Group reordering is committed live in onDragOver; nothing to finalize here.
+    if (activeIdStr.startsWith(GROUP_SORT_PREFIX)) return;
 
-    if (activeContainer === overContainer) {
-      const fromIndex = indexInContainer(String(active.id), activeContainer);
+    const activeContainer = findContainer(activeIdStr);
+    if (!activeContainer) return;
+
+    if (overIdStr === NEW_GROUP || findContainer(overIdStr) === NEW_GROUP) {
+      moveCardToNewGroup(activeIdStr, activeContainer);
+      return;
+    }
+
+    const effectiveOverId = overIdStr.startsWith(GROUP_SORT_PREFIX)
+      ? GROUP_PREFIX + overIdStr.slice(GROUP_SORT_PREFIX.length)
+      : overIdStr;
+    const overContainer = findContainer(effectiveOverId);
+    if (!overContainer) return;
+
+    const overIsContainer = isContainerId(effectiveOverId);
+    const resolvedOver = overIsContainer ? effectiveOverId : overContainer;
+    if (activeContainer === resolvedOver) {
+      const fromIndex = indexInContainer(activeIdStr, activeContainer);
       const toIndex = overIsContainer
-        ? containerLength(overContainer) - 1
-        : indexInContainer(String(over.id), overContainer);
+        ? containerLength(resolvedOver) - 1
+        : indexInContainer(effectiveOverId, resolvedOver);
       if (fromIndex !== -1 && toIndex !== -1 && fromIndex !== toIndex) {
         reorderInContainer(activeContainer, fromIndex, toIndex);
       }
@@ -357,17 +459,11 @@ export function CardSort({
 
   const onDeleteGroup = (id: string) => {
     setState((prev) => {
-      const g = prev.groups.find((g) => g.id === id);
+      const g = prev.groups.find((x) => x.id === id);
       if (!g) return prev;
-      const usefulLen = prev.unsorted.length - prev.notUsefulCount;
       return {
-        ...prev,
+        unsorted: [...prev.unsorted, ...g.cardIds],
         groups: prev.groups.filter((x) => x.id !== id),
-        unsorted: [
-          ...prev.unsorted.slice(0, usefulLen),
-          ...g.cardIds,
-          ...prev.unsorted.slice(usefulLen),
-        ],
       };
     });
     setHasChanges(true);
@@ -380,61 +476,70 @@ export function CardSort({
   };
 
   const CARD_STEP_PX = 52;
-  const computeNewNotUsefulCount = (clientY: number): number => {
-    const dy = clientY - dragStartYRef.current;
-    const stepDelta = -Math.round(dy / CARD_STEP_PX);
-    const next = dragStartNotUsefulCountRef.current + stepDelta;
-    return Math.max(0, Math.min(state.unsorted.length, next));
+  const onDividerPressDown = (groupId: string, clientY: number) => {
+    const g = state.groups.find((x) => x.id === groupId);
+    dividerDragRef.current = {
+      groupId,
+      startY: clientY,
+      startCount: g?.notUsefulCount ?? 0,
+      total: g?.cardIds.length ?? 0,
+    };
   };
 
-  const onDividerDragStart = () => {};
-
   const onDividerDrag = (clientY: number) => {
-    if (dragStartYRef.current === 0) return;
-    const newNotUseful = computeNewNotUsefulCount(clientY);
+    const drag = dividerDragRef.current;
+    if (!drag.groupId) return;
+    const dy = clientY - drag.startY;
+    const stepDelta = -Math.round(dy / CARD_STEP_PX);
+    const newCount = Math.max(0, Math.min(drag.total, drag.startCount + stepDelta));
     setState((prev) => {
-      if (newNotUseful === prev.notUsefulCount) return prev;
+      const g = prev.groups.find((x) => x.id === drag.groupId);
+      if (!g || g.notUsefulCount === newCount) return prev;
       setHasChanges(true);
-      return { ...prev, notUsefulCount: newNotUseful };
+      return {
+        ...prev,
+        groups: prev.groups.map((x) =>
+          x.id === drag.groupId ? { ...x, notUsefulCount: newCount } : x,
+        ),
+      };
     });
   };
 
   const onDividerDragEnd = () => {
-    dragStartYRef.current = 0;
-  };
-
-  const onDividerPressDown = (clientY: number) => {
-    dragStartYRef.current = clientY;
-    dragStartNotUsefulCountRef.current = state.notUsefulCount;
+    dividerDragRef.current.groupId = null;
   };
 
   const activeCard: CardItem | null = activeId ? cardsById[activeId] ?? null : null;
-  const activeContainer = activeId ? findContainer(activeId) : null;
+  const activeContainer = activeCard && activeId ? findContainer(activeId) : null;
   const activeOrder =
-    activeId && activeContainer === UNSORTED
-      ? usefulIds.indexOf(activeId) + 1
-      : activeId && activeContainer && activeContainer.startsWith(GROUP_PREFIX)
-        ? (() => {
-            const gid = activeContainer.slice(GROUP_PREFIX.length);
-            const g = state.groups.find((g) => g.id === gid);
-            return g ? g.cardIds.indexOf(activeId) + 1 : null;
-          })()
-        : null;
+    activeCard && activeContainer && activeContainer.startsWith(GROUP_PREFIX)
+      ? (() => {
+          const g = groupById(activeContainer);
+          return g ? groupUseful(g).indexOf(activeId!) + 1 : null;
+        })()
+      : null;
+  const activeGroup =
+    activeId && activeId.startsWith(GROUP_SORT_PREFIX)
+      ? state.groups.find((g) => g.id === activeId.slice(GROUP_SORT_PREFIX.length)) ?? null
+      : null;
+
+  const remaining = state.unsorted.length;
+  const blocked = remaining > 0;
 
   const onSubmitClick = async () => {
     if (!onSubmit) return;
     setError(null);
     setSubmitting(true);
     try {
-      const usefulLen = state.unsorted.length - state.notUsefulCount;
+      const notUseful: string[] = [];
+      const groups = state.groups.map((g) => {
+        notUseful.push(...groupNotUseful(g));
+        return { id: g.id, label: g.label, cardIds: groupUseful(g) };
+      });
       const payload: SubmissionInput = {
-        groups: state.groups.map((g) => ({
-          id: g.id,
-          label: g.label,
-          cardIds: g.cardIds,
-        })),
-        unsorted: state.unsorted.slice(0, usefulLen),
-        notUseful: state.unsorted.slice(usefulLen),
+        groups,
+        unsorted: state.unsorted,
+        notUseful,
       };
       await onSubmit(payload);
       clearDraft(draftKey);
@@ -451,7 +556,7 @@ export function CardSort({
     return (
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
         <Header title={title} subtitle={subtitle} badgeLabel={badgeLabel} error={null} />
-        <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
+        <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-[minmax(300px,380px)_1fr]">
           <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
           <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
         </div>
@@ -471,82 +576,37 @@ export function CardSort({
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
         <Header title={title} subtitle={subtitle} badgeLabel={badgeLabel} error={error} />
 
-        <div className="grid w-full grid-cols-1 gap-6 lg:grid-cols-[minmax(320px,420px)_1fr]">
-          <div className="flex flex-col gap-3 lg:sticky lg:top-[5rem] lg:self-start">
+        <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-[minmax(300px,380px)_1fr]">
+          <div className="flex flex-col gap-3 md:sticky md:top-[5rem] md:self-start">
             <ColumnHeading
               title="Items to sort"
-              countLabel={`${usefulIds.length} useful · ${state.notUsefulCount} not useful`}
+              countLabel={remaining === 0 ? 'all sorted' : `${remaining} left`}
             />
             <div
               className="border-separator1 bg-bg1 relative flex flex-col rounded-lg border"
               style={{ maxHeight: 'min(760px, calc(100svh - 11rem))' }}
             >
-              <div
-                ref={columnRef}
-                className="flex flex-1 flex-col gap-2 overflow-y-auto p-3"
-              >
-                <Column id={UNSORTED} cardIds={usefulIds}>
-                  {usefulIds.map((id, idx) => (
-                    <div
-                      key={id}
-                      ref={(el) => {
-                        cardRefs.current[id] = el;
-                      }}
-                    >
+              <div className="flex flex-1 flex-col gap-2 overflow-y-auto p-3">
+                <Column id={UNSORTED} cardIds={state.unsorted}>
+                  {state.unsorted.length === 0 ? (
+                    <AllSortedHint />
+                  ) : (
+                    state.unsorted.map((id) => (
                       <SortableCard
+                        key={id}
                         card={cardsById[id]!}
-                        order={idx + 1}
+                        order={null}
                         tone="ok"
                         containerId={UNSORTED}
                       />
-                    </div>
-                  ))}
-                  {usefulIds.length === 0 && state.notUsefulCount > 0 && (
-                    <EmptyDropZone label="Drop cards here" />
+                    ))
                   )}
                 </Column>
-              </div>
-              <div className="border-t-separator1 bg-bg1 relative flex flex-col gap-2 border-t px-3 pt-1 pb-3">
-                <NotUsefulDivider
-                  onPressDown={onDividerPressDown}
-                  onDragStart={onDividerDragStart}
-                  onDrag={onDividerDrag}
-                  onDragEnd={onDividerDragEnd}
-                />
-                <div
-                  className={cn(
-                    'flex flex-col gap-2',
-                    notUsefulIds.length > 0 && 'max-h-44 overflow-y-auto',
-                  )}
-                  ref={notUsefulRef}
-                >
-                  <Column id={NOT_USEFUL} cardIds={notUsefulIds}>
-                    {notUsefulIds.length === 0 ? (
-                      <NotUsefulHint />
-                    ) : (
-                      notUsefulIds.map((id) => (
-                        <div
-                          key={id}
-                          ref={(el) => {
-                            cardRefs.current[id] = el;
-                          }}
-                        >
-                          <SortableCard
-                            card={cardsById[id]!}
-                            order={null}
-                            tone="danger"
-                            containerId={NOT_USEFUL}
-                          />
-                        </div>
-                      ))
-                    )}
-                  </Column>
-                </div>
               </div>
             </div>
           </div>
 
-          <div className="flex flex-col gap-3 min-w-0">
+          <div className="flex min-w-0 flex-col gap-3">
             <ColumnHeading
               title="Groups"
               countLabel={`${state.groups.length} group${state.groups.length === 1 ? '' : 's'}`}
@@ -563,36 +623,29 @@ export function CardSort({
             />
 
             {state.groups.length === 0 ? (
-              <EmptyGroups onAdd={onAddGroup} />
+              <NewGroupDropZone variant="empty" onAdd={onAddGroup} />
             ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {state.groups.map((g) => {
-                  const containerId = GROUP_PREFIX + g.id;
-                  return (
-                    <GroupPanel
+              <SortableContext
+                items={state.groups.map((g) => GROUP_SORT_PREFIX + g.id)}
+                strategy={rectSortingStrategy}
+              >
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+                  {state.groups.map((g) => (
+                    <SortableGroup
                       key={g.id}
-                      label={g.label}
-                      count={g.cardIds.length}
+                      group={g}
+                      cardsById={cardsById}
+                      activeId={activeId}
                       onRename={(label) => onRenameGroup(g.id, label)}
                       onDelete={() => onDeleteGroup(g.id)}
-                    >
-                      <Column id={containerId} cardIds={g.cardIds} flush>
-                        {g.cardIds.length === 0 && <GroupEmptyHint />}
-                        {g.cardIds.map((id, idx) => (
-                          <SortableCard
-                            key={id}
-                            card={cardsById[id]!}
-                            order={idx + 1}
-                            tone="ok"
-                            containerId={containerId}
-                            groupId={g.id}
-                          />
-                        ))}
-                      </Column>
-                    </GroupPanel>
-                  );
-                })}
-              </div>
+                      onDividerPressDown={onDividerPressDown}
+                      onDividerDrag={onDividerDrag}
+                      onDividerDragEnd={onDividerDragEnd}
+                    />
+                  ))}
+                  <NewGroupDropZone variant="tile" onAdd={onAddGroup} />
+                </div>
+              </SortableContext>
             )}
           </div>
         </div>
@@ -602,7 +655,8 @@ export function CardSort({
         <StickyActionBar
           hasChanges={hasChanges}
           submitting={submitting}
-          notUsefulCount={state.notUsefulCount}
+          remaining={remaining}
+          blocked={blocked}
           groupCount={state.groups.length}
           canSubmit={!!onSubmit}
           onSubmit={onSubmitClick}
@@ -616,19 +670,194 @@ export function CardSort({
           <SortableCard
             card={activeCard}
             order={activeOrder ?? null}
-            tone={activeContainer === NOT_USEFUL ? 'danger' : 'ok'}
+            tone={activeContainer?.startsWith(GROUP_NU_PREFIX) ? 'danger' : 'ok'}
             containerId="overlay"
+            overlay
           />
+        ) : activeGroup ? (
+          <GroupDragPreview label={activeGroup.label} count={activeGroup.cardIds.length} />
         ) : null}
       </DragOverlay>
+
+      <Toaster position="top-center" />
     </DndContext>
+  );
+}
+
+function SortableGroup({
+  group,
+  cardsById,
+  activeId,
+  onRename,
+  onDelete,
+  onDividerPressDown,
+  onDividerDrag,
+  onDividerDragEnd,
+}: {
+  group: GroupState;
+  cardsById: Record<string, CardItem>;
+  activeId: string | null;
+  onRename: (label: string) => void;
+  onDelete: () => void;
+  onDividerPressDown: (groupId: string, clientY: number) => void;
+  onDividerDrag: (clientY: number) => void;
+  onDividerDragEnd: () => void;
+}) {
+  const {
+    setNodeRef,
+    setActivatorNodeRef,
+    listeners,
+    attributes,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: GROUP_SORT_PREFIX + group.id, data: { type: 'group' } });
+
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+
+  const usefulIds = groupUseful(group);
+  const notUsefulIds = groupNotUseful(group);
+  const usefulContainer = GROUP_PREFIX + group.id;
+  const notUsefulContainer = GROUP_NU_PREFIX + group.id;
+  const hasCards = group.cardIds.length > 0;
+  // Only offer the not-useful zone once the group has a settled card (one other than the
+  // card currently being dragged). This keeps the first card from landing below the line.
+  const showNotUseful = group.cardIds.some((id) => id !== activeId);
+
+  return (
+    <GroupPanel
+      label={group.label}
+      count={group.cardIds.length}
+      onRename={onRename}
+      onDelete={onDelete}
+      innerRef={setNodeRef}
+      style={style}
+      attributes={attributes}
+      handleRef={setActivatorNodeRef}
+      handleListeners={listeners}
+      isDragging={isDragging}
+    >
+      <Column id={usefulContainer} cardIds={usefulIds} flush>
+        {!hasCards && <GroupEmptyHint />}
+        {usefulIds.map((id, idx) => (
+          <SortableCard
+            key={id}
+            card={cardsById[id]!}
+            order={idx + 1}
+            tone="ok"
+            containerId={usefulContainer}
+            groupId={group.id}
+          />
+        ))}
+      </Column>
+
+      {showNotUseful && (
+        <>
+          <NotUsefulDivider
+            onPressDown={(clientY) => onDividerPressDown(group.id, clientY)}
+            onDrag={onDividerDrag}
+            onDragEnd={onDividerDragEnd}
+          />
+          <Column id={notUsefulContainer} cardIds={notUsefulIds} flush className="min-h-9">
+            {notUsefulIds.length === 0 ? (
+              <GroupNotUsefulHint />
+            ) : (
+              notUsefulIds.map((id) => (
+                <SortableCard
+                  key={id}
+                  card={cardsById[id]!}
+                  order={null}
+                  tone="danger"
+                  containerId={notUsefulContainer}
+                  groupId={group.id}
+                />
+              ))
+            )}
+          </Column>
+        </>
+      )}
+    </GroupPanel>
+  );
+}
+
+function NewGroupDropZone({
+  variant,
+  onAdd,
+}: {
+  variant: 'empty' | 'tile';
+  onAdd: () => void;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: NEW_GROUP, data: { type: 'newGroup' } });
+
+  if (variant === 'empty') {
+    return (
+      <div
+        ref={setNodeRef}
+        data-over={isOver || undefined}
+        className={cn(
+          'border-separator1 bg-bg1 relative flex min-h-64 flex-col items-center justify-center gap-3 overflow-hidden rounded-lg border border-dashed p-6 text-center transition-colors',
+          isOver && 'border-fgAccent1 bg-bgAccent1/40',
+        )}
+      >
+        <DotFill tone="accent" opacity={0.18} />
+        <div className="relative flex flex-col items-center gap-1">
+          <h3 className="text-fg0 text-sm font-semibold">No groups yet</h3>
+          <p className="text-fg3 max-w-xs text-xs">
+            Drag a card here to start a group, or use the button below. Create groups to bucket
+            related cards together — the number of groups and their names are up to you.
+          </p>
+        </div>
+        <Button
+          className="relative"
+          variant="secondary"
+          size="sm"
+          leftIcon={<CirclePlusIcon />}
+          onClick={onAdd}
+        >
+          Create your first group
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      ref={setNodeRef as unknown as React.Ref<HTMLButtonElement>}
+      onClick={onAdd}
+      data-over={isOver || undefined}
+      className={cn(
+        'group border-separator1 text-fg4 hover:text-fg2 hover:border-separator2 relative flex min-h-24 cursor-pointer flex-col items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-dashed p-4 text-center text-xs font-medium transition-colors',
+        isOver && 'border-fgAccent1 bg-bgAccent1/40 text-fgAccent1',
+      )}
+    >
+      <DotFill tone="accent" opacity={0.12} />
+      <CirclePlusIcon className="relative h-4 w-4" />
+      <span className="relative group-hover:hidden">Drop a card here to start a new group</span>
+      <span className="relative hidden group-hover:inline">Click here to create a new group</span>
+    </button>
+  );
+}
+
+function GroupDragPreview({ label, count }: { label: string; count: number }) {
+  return (
+    <div className="border-separator2 bg-bg1 flex w-full items-center gap-2 rounded-lg border px-3 py-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.18)]">
+      <span className="text-fg0 truncate text-sm font-semibold">{label}</span>
+      <span className="bg-bg2 text-fg3 ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded px-1 font-mono text-[10px] font-bold tabular-nums">
+        {count}
+      </span>
+    </div>
   );
 }
 
 function StickyActionBar({
   hasChanges,
   submitting,
-  notUsefulCount,
+  remaining,
+  blocked,
   groupCount,
   canSubmit,
   onSubmit,
@@ -637,30 +866,50 @@ function StickyActionBar({
 }: {
   hasChanges: boolean;
   submitting: boolean;
-  notUsefulCount: number;
+  remaining: number;
+  blocked: boolean;
   groupCount: number;
   canSubmit: boolean;
   onSubmit: () => void;
   onShowResults?: () => void;
   onResetDraft: () => void;
 }) {
+  const reason = `Move all ${remaining} remaining ${remaining === 1 ? 'item' : 'items'} into groups before submitting.`;
+
+  const handleSubmitClick = () => {
+    if (submitting) return;
+    if (blocked) {
+      toast.info('Almost there', { description: reason });
+      return;
+    }
+    onSubmit();
+  };
+
   return (
     <div className="pointer-events-none sticky bottom-0 left-0 right-0 z-40 mt-4 px-4 pb-4 sm:px-6 sm:pb-6">
       <div className="pointer-events-auto mx-auto flex w-full max-w-7xl items-center justify-between gap-3 rounded-xl border border-separator1 bg-bg1/95 px-3 py-2.5 shadow-[0_-4px_24px_rgba(0,0,0,0.08)] backdrop-blur supports-[backdrop-filter]:bg-bg1/80">
         <div className="hidden min-w-0 items-center gap-2 sm:flex">
           <span className="text-fg3 text-xs">
-            {hasChanges ? (
+            {remaining > 0 ? (
               <>
-                <span className="text-fg0 font-semibold">Unsubmitted changes</span>
+                <span className="text-fg0 font-semibold">
+                  {remaining} {remaining === 1 ? 'item' : 'items'} left to sort
+                </span>
                 <span className="text-fg4">
                   {' · '}
                   {groupCount} {groupCount === 1 ? 'group' : 'groups'}
+                </span>
+              </>
+            ) : hasChanges ? (
+              <>
+                <span className="text-fg0 font-semibold">Ready to submit</span>
+                <span className="text-fg4">
                   {' · '}
-                  {notUsefulCount} not useful
+                  {groupCount} {groupCount === 1 ? 'group' : 'groups'}
                 </span>
               </>
             ) : (
-              <span>Drag a card to begin.</span>
+              <span>Drag a card into a group to begin.</span>
             )}
           </span>
         </div>
@@ -686,15 +935,26 @@ function StickyActionBar({
             </Button>
           )}
           {canSubmit && (
-            <Button
-              variant="primary"
-              size="sm"
-              leftIcon={<ArrowOutOfBoxIcon />}
-              disabled={!hasChanges || submitting}
-              onClick={onSubmit}
-            >
-              {submitting ? 'Submitting…' : 'Submit my sort'}
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  leftIcon={<ArrowOutOfBoxIcon />}
+                  onClick={handleSubmitClick}
+                  className={cn(
+                    blocked && 'cursor-not-allowed bg-bg3! text-fg4! hover:bg-bg3!',
+                  )}
+                >
+                  {submitting ? 'Submitting…' : 'Submit my sort'}
+                </Button>
+              </TooltipTrigger>
+              {blocked && (
+                <TooltipPortal>
+                  <TooltipContent>{reason}</TooltipContent>
+                </TooltipPortal>
+              )}
+            </Tooltip>
           )}
         </div>
       </div>
@@ -736,30 +996,8 @@ function Header({
   );
 }
 
-const INSTRUCTIONS_STORAGE_KEY = 'card-sort:instructions-open';
-
 function InstructionsAccordion() {
   const [open, setOpen] = React.useState(false);
-  const [hydrated, setHydrated] = React.useState(false);
-
-  React.useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(INSTRUCTIONS_STORAGE_KEY);
-      if (stored === 'open') setOpen(true);
-    } catch {
-      // ignore
-    }
-    setHydrated(true);
-  }, []);
-
-  React.useEffect(() => {
-    if (!hydrated) return;
-    try {
-      window.localStorage.setItem(INSTRUCTIONS_STORAGE_KEY, open ? 'open' : 'closed');
-    } catch {
-      // ignore
-    }
-  }, [open, hydrated]);
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
@@ -779,7 +1017,7 @@ function InstructionsAccordion() {
               <span className="text-fg1 text-sm font-semibold">How to sort</span>
               {!open && (
                 <span className="text-fg4 hidden text-xs sm:inline">
-                  · Reorder, group, and mark cards as not useful
+                  · Group, reorder, and mark cards as not useful
                 </span>
               )}
             </span>
@@ -800,22 +1038,25 @@ function InstructionsAccordion() {
           )}
         >
           <ol className="*:text-initial divide-separator1 text-fg1 list-inside list-decimal divide-y px-3 text-sm font-semibold *:font-normal">
-            <InstructionsStep title="Reorder by importance.">
+            <InstructionsStep title="Group related items.">
               <p className="text-fg2 mt-1.5 ml-5 font-normal">
-                Drag any card up or down. The number in the corner shows its current position.
+                Drag a card into the group area to start a group, or click{' '}
+                <span className="font-semibold">New group</span>. Rename a group any time, and drag
+                groups to reorder them.
               </p>
             </InstructionsStep>
-            <InstructionsStep title="Group related items (optional).">
+            <InstructionsStep title="Reorder by importance.">
               <p className="text-fg2 mt-1.5 ml-5 font-normal">
-                Click <span className="font-semibold">New group</span>, give it a name, then drag
-                cards in. You can rearrange within a group too.
+                Drag cards up or down within a group. The number in the corner shows its current
+                position.
               </p>
             </InstructionsStep>
             <InstructionsStep title="Mark anything irrelevant as not useful.">
               <p className="text-fg2 mt-1.5 ml-5 font-normal">
-                Drag the red <span className="text-fgSerious1 font-semibold">Not useful</span>{' '}
-                divider up to push cards below the line. Their order doesn&apos;t matter —
-                they&apos;re just out. Drag the line back down to restore them.
+                Inside any group, drag the red{' '}
+                <span className="text-fgSerious1 font-semibold">Not useful</span> divider up so the
+                cards you don&apos;t care about drop below the line. Drag it back down to restore
+                them.
               </p>
             </InstructionsStep>
           </ol>
@@ -847,22 +1088,11 @@ function ColumnHeading({
   );
 }
 
-function EmptyDropZone({ label }: { label: string }) {
+function AllSortedHint() {
   return (
-    <div className="border-separator1 text-fg4 relative flex h-12 items-center justify-center overflow-hidden rounded-md border border-dashed text-xs font-medium">
-      <DotFill tone="fg" opacity={0.25} />
-      <span className="relative">{label}</span>
-    </div>
-  );
-}
-
-function NotUsefulHint() {
-  return (
-    <div className="border-separatorSerious1 text-fgSerious1 relative flex min-h-12 items-center justify-center overflow-hidden rounded-md border border-dashed px-3 py-2 text-center text-xs font-medium">
-      <DotFill tone="serious" opacity={0.35} />
-      <span className="relative">
-        Drag the red line up — anything below becomes &ldquo;not useful&rdquo;.
-      </span>
+    <div className="border-separator1 text-fg4 relative flex min-h-12 items-center justify-center overflow-hidden rounded-md border border-dashed px-3 py-2 text-center text-xs font-medium">
+      <DotFill tone="accent" opacity={0.2} />
+      <span className="relative">Everything is in a group. You&apos;re ready to submit.</span>
     </div>
   );
 }
@@ -876,26 +1106,10 @@ function GroupEmptyHint() {
   );
 }
 
-function EmptyGroups({ onAdd }: { onAdd: () => void }) {
+function GroupNotUsefulHint() {
   return (
-    <div className="border-separator1 bg-bg1 relative flex min-h-64 flex-col items-center justify-center gap-3 overflow-hidden rounded-lg border border-dashed p-6 text-center">
-      <DotFill tone="accent" opacity={0.18} />
-      <div className="relative flex flex-col items-center gap-1">
-        <h3 className="text-fg0 text-sm font-semibold">No groups yet</h3>
-        <p className="text-fg3 max-w-xs text-xs">
-          Optional: create groups to bucket related cards together. The number of groups and their
-          names are completely up to you.
-        </p>
-      </div>
-      <Button
-        className={cn('relative')}
-        variant="secondary"
-        size="sm"
-        leftIcon={<CirclePlusIcon />}
-        onClick={onAdd}
-      >
-        Create your first group
-      </Button>
+    <div className="text-fgSerious1/70 relative flex min-h-9 items-center justify-center px-3 text-center text-[11px] font-medium">
+      <span className="relative">Pull the line up — anything below is &ldquo;not useful&rdquo;.</span>
     </div>
   );
 }

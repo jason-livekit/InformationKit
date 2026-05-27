@@ -67,7 +67,7 @@ async function doSeed(): Promise<void> {
       projectId: DEMO_PROJECT_ID,
       name: 'LiveKit Cloud terminology · Information architecture',
       description:
-        'Help us figure out how to group and prioritize the terms and concepts across LiveKit Cloud — agents, telephony, deployment, observability, billing, and more.',
+        'Help us figure out how to group and prioritize the concepts across LiveKit Cloud.',
       type: 'card-sort',
       status: 'open',
       shareSlug: DEMO_SHARE_SLUG,

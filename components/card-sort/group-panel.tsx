@@ -1,8 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import type { DraggableAttributes, DraggableSyntheticListeners } from '@dnd-kit/core';
 import { cn } from '@/lib/bytes/utils';
-import { TrashCanIcon, FolderBookmarksIcon } from '@/icons/react';
+import { TrashCanIcon, FolderBookmarksIcon, ReorderIcon } from '@/icons/react';
 import { DotFill } from './dot-fill';
 
 export interface GroupPanelProps {
@@ -12,6 +13,14 @@ export interface GroupPanelProps {
   onDelete: () => void;
   className?: string;
   children: React.ReactNode;
+  /** Sortable node ref + transform style, for reordering the group itself. */
+  innerRef?: (el: HTMLDivElement | null) => void;
+  style?: React.CSSProperties;
+  attributes?: DraggableAttributes;
+  /** Ref + listeners for the drag handle that reorders this group. */
+  handleRef?: (el: HTMLElement | null) => void;
+  handleListeners?: DraggableSyntheticListeners;
+  isDragging?: boolean;
 }
 
 export function GroupPanel({
@@ -21,6 +30,12 @@ export function GroupPanel({
   onDelete,
   className,
   children,
+  innerRef,
+  style,
+  attributes,
+  handleRef,
+  handleListeners,
+  isDragging,
 }: GroupPanelProps) {
   const [editing, setEditing] = React.useState(label.trim() === '' || label === 'Untitled group');
   const [draft, setDraft] = React.useState(label === 'Untitled group' ? '' : label);
@@ -43,13 +58,28 @@ export function GroupPanel({
 
   return (
     <div
+      ref={innerRef}
+      style={style}
+      {...attributes}
       className={cn(
         'border-separator1 bg-bg1 relative flex w-full flex-col overflow-hidden rounded-lg border',
+        isDragging && 'opacity-50',
         className,
       )}
     >
       <div className="border-b-separator1 relative flex items-center gap-2 border-b px-3 py-2.5">
         <DotFill tone="accent" opacity={0.18} className="opacity-30" spacing={5} />
+        {handleListeners && (
+          <button
+            type="button"
+            ref={handleRef}
+            {...handleListeners}
+            aria-label="Drag to reorder group"
+            className="text-fg4 hover:text-fg2 relative -ml-1 inline-flex h-6 w-5 cursor-grab items-center justify-center rounded touch-none active:cursor-grabbing"
+          >
+            <ReorderIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
         <FolderBookmarksIcon className="text-fg3 relative h-4 w-4 shrink-0" />
         <div className="relative flex min-w-0 flex-1 items-center gap-2">
           {editing ? (
