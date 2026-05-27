@@ -4,7 +4,10 @@ import { Redis } from '@upstash/redis';
 /**
  * Thin KV interface used by every repo. Two implementations:
  *
- *   - Upstash Redis (when UPSTASH_REDIS_REST_URL + token are set)
+ *   - Upstash Redis (REST). Credentials are read from either naming scheme:
+ *       · UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN (Upstash's own names)
+ *       · KV_REST_API_URL / KV_REST_API_TOKEN (what the Vercel Marketplace
+ *         "Upstash for Redis" integration injects)
  *   - In-memory (dev fallback + tests)
  *
  * The in-memory store is process-global so concurrent requests in dev see
@@ -147,10 +150,23 @@ function makeRedisKV(redis: Redis): KV {
 let cached: KV | null = null;
 let cachedKind: 'redis' | 'memory' | null = null;
 
+/**
+ * Resolve Upstash REST credentials from the environment, accepting both the
+ * UPSTASH_REDIS_REST_* names and the KV_REST_API_* names that the Vercel
+ * Marketplace Upstash integration injects. Returns null when neither pair is set.
+ */
+function resolveRedisCreds(): { url: string; token: string } | null {
+  const url = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+  if (url && token) return { url, token };
+  return null;
+}
+
 export function getKV(): KV {
   if (cached) return cached;
-  if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
-    cached = makeRedisKV(Redis.fromEnv());
+  const creds = resolveRedisCreds();
+  if (creds) {
+    cached = makeRedisKV(new Redis({ url: creds.url, token: creds.token }));
     cachedKind = 'redis';
   } else {
     cached = makeMemoryKV();
