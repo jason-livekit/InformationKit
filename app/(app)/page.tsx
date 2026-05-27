@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { auth } from '@/auth';
 import { ensureSeed, DEMO_STUDY_ID } from '@/lib/repo/seed';
 import { getStudy } from '@/lib/repo/studies';
-import { listProjectsByOwner } from '@/lib/repo/projects';
+import { listProjectsForUser } from '@/lib/repo/projects';
 import { listStudiesByProject } from '@/lib/repo/studies';
 import { Button } from '@/components/bytes/Button';
 import { Badge } from '@/components/bytes/Badge';
@@ -20,11 +20,11 @@ export default async function Home() {
     const demo = await getStudy(DEMO_STUDY_ID);
     return <SignedOutLanding demoSlug={demo?.shareSlug ?? null} />;
   }
-  const projects = await listProjectsByOwner(user.id);
+  const projects = await listProjectsForUser(user.id);
   const projectsWithCounts = await Promise.all(
     projects.map(async (p) => {
       const studies = await listStudiesByProject(p.id);
-      return { project: p, studyCount: studies.length };
+      return { project: p, studyCount: studies.length, shared: p.ownerId !== user.id };
     }),
   );
   const demo = await getStudy(DEMO_STUDY_ID);
@@ -54,15 +54,22 @@ export default async function Home() {
         <EmptyProjects />
       ) : (
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {projectsWithCounts.map(({ project, studyCount }) => (
+          {projectsWithCounts.map(({ project, studyCount, shared }) => (
             <li key={project.id}>
               <Link
                 href={`/projects/${project.id}`}
                 className="border-separator1 bg-bg1 hover:bg-bg2 group flex flex-col gap-2 rounded-lg border p-4 transition-colors"
               >
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-fg0 truncate text-sm font-semibold">{project.name}</h2>
-                  <span className="text-fg4 group-hover:text-fg2 text-xs">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <h2 className="text-fg0 truncate text-sm font-semibold">{project.name}</h2>
+                    {shared && (
+                      <Badge variant="muted" size="medium">
+                        Shared
+                      </Badge>
+                    )}
+                  </div>
+                  <span className="text-fg4 group-hover:text-fg2 shrink-0 text-xs">
                     {studyCount} {studyCount === 1 ? 'study' : 'studies'}
                   </span>
                 </div>

@@ -1,12 +1,16 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
-import { loadOwnedProject, requireSessionUser } from '@/lib/repo/access';
+import { loadProjectAccess, requireSessionUser } from '@/lib/repo/access';
 import { listStudiesByProject } from '@/lib/repo/studies';
 import { countSubmissions } from '@/lib/repo/submissions';
+import { listProjectMembers } from '@/lib/repo/members';
+import { listInvitesByProject } from '@/lib/repo/invites';
+import { getUserById } from '@/lib/repo/users';
 import { Button } from '@/components/bytes/Button';
 import { Badge } from '@/components/bytes/Badge';
 import { ArrowLeftIcon, CirclePlusIcon } from '@/icons/react';
 import { ProjectHeader } from './project-header';
+import { MembersPanel, type MemberRow } from './members-panel';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,8 +22,9 @@ export default async function ProjectPage({
   const user = await requireSessionUser();
   const { projectId } = await params;
   let project;
+  let role;
   try {
-    project = await loadOwnedProject(projectId, user.id);
+    ({ project, role } = await loadProjectAccess(projectId, user.id));
   } catch {
     notFound();
   }
@@ -30,6 +35,16 @@ export default async function ProjectPage({
       submissions: await countSubmissions(s.id),
     })),
   );
+
+  const ownerUser = await getUserById(project.ownerId);
+  const members = await listProjectMembers(project.id);
+  const memberRows: MemberRow[] = await Promise.all(
+    members.map(async (m) => {
+      const u = await getUserById(m.userId);
+      return { userId: m.userId, email: u?.email ?? null, name: u?.name ?? null, role: m.role };
+    }),
+  );
+  const invites = role === 'owner' ? await listInvitesByProject(project.id) : [];
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-6 px-6 py-10">
@@ -95,6 +110,18 @@ export default async function ProjectPage({
           </table>
         </div>
       )}
+
+      <MembersPanel
+        projectId={project.id}
+        role={role}
+        owner={
+          ownerUser
+            ? { userId: ownerUser.id, email: ownerUser.email, name: ownerUser.name }
+            : null
+        }
+        members={memberRows}
+        invites={invites.map((i) => ({ token: i.token, email: i.email }))}
+      />
     </div>
   );
 }

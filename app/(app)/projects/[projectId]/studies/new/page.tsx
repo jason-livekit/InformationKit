@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { loadOwnedProject, requireSessionUser } from '@/lib/repo/access';
+import { loadProjectAccess, requireSessionUser } from '@/lib/repo/access';
 import { createStudy } from '@/lib/repo/studies';
 import { Button } from '@/components/bytes/Button';
 import { Badge } from '@/components/bytes/Badge';
@@ -15,12 +15,12 @@ export default async function NewStudyPage({
 }) {
   const user = await requireSessionUser();
   const { projectId } = await params;
-  const project = await loadOwnedProject(projectId, user.id);
+  const { project } = await loadProjectAccess(projectId, user.id);
 
   async function createStudyAction(formData: FormData) {
     'use server';
     const u = await requireSessionUser();
-    await loadOwnedProject(projectId, u.id);
+    await loadProjectAccess(projectId, u.id);
     const name = String(formData.get('name') ?? '').trim() || 'Untitled card sort';
     const type = String(formData.get('type') ?? 'card-sort');
     if (type !== 'card-sort') return;

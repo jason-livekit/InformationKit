@@ -1,6 +1,8 @@
 import { getKV } from './redis';
 import { ProjectSchema, type Project } from './schemas';
 import { makeId } from './ids';
+import { listMemberProjectIds, removeAllProjectMembers } from './members';
+import { listInvitesByProject, deleteInvite } from './invites';
 
 const projectKey = (id: string) => `project:${id}`;
 const projectsByOwnerKey = (ownerId: string) => `user:${ownerId}:projects`;
@@ -40,6 +42,21 @@ export async function listProjectsByOwner(ownerId: string): Promise<Project[]> {
     .sort((a, b) => a.createdAt - b.createdAt);
 }
 
+/**
+ * Projects a user can access: those they own plus those they're a member of.
+ * De-duplicated and sorted by creation time.
+ */
+export async function listProjectsForUser(userId: string): Promise<Project[]> {
+  const kv = getKV();
+  const ownedIds = await kv.setMembers(projectsByOwnerKey(userId));
+  const memberIds = await listMemberProjectIds(userId);
+  const ids = Array.from(new Set([...ownedIds, ...memberIds]));
+  const projects = await Promise.all(ids.map((id) => kv.jsonGet<Project>(projectKey(id))));
+  return projects
+    .filter((p): p is Project => p !== null)
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
 export interface UpdateProjectInput {
   name?: string;
   description?: string;
@@ -65,6 +82,10 @@ export async function deleteProject(id: string): Promise<void> {
   const kv = getKV();
   const existing = await kv.jsonGet<Project>(projectKey(id));
   if (!existing) return;
+  await removeAllProjectMembers(id);
+  for (const invite of await listInvitesByProject(id)) {
+    await deleteInvite(invite.token);
+  }
   await kv.del(projectKey(id));
   await kv.setRem(projectsByOwnerKey(existing.ownerId), id);
 }

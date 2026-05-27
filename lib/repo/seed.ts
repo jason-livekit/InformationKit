@@ -3,12 +3,18 @@ import { upsertUser } from './users';
 import { StudySchema, ProjectSchema, SubmissionSchema } from './schemas';
 import { CARDS as DEMO_CARDS } from '@/lib/card-sort/items';
 
-export const DEMO_USER_EMAIL = 'demo@informationkit.local';
+/**
+ * Who owns the built-in demo study. Sign in as this email to manage the demo:
+ * view the Analysis visualization, copy the share link, and open/close (start/stop)
+ * the study. Set DEMO_OWNER_EMAIL to your own address (e.g. on Vercel) so it shows up
+ * in your dashboard; otherwise it falls back to a synthetic local owner.
+ */
+export const DEMO_USER_EMAIL = process.env.DEMO_OWNER_EMAIL || 'demo@informationkit.local';
 export const DEMO_STUDY_ID = 'st_demo_sessions_ui';
 export const DEMO_PROJECT_ID = 'p_demo';
 export const DEMO_SHARE_SLUG = 'demo-sessions-ui';
 
-const SEED_FLAG_KEY = 'migration:done:v1';
+const SEED_FLAG_KEY = 'migration:done:v2';
 const LEGACY_SUBMISSIONS_KEY = 'card-sort:submissions';
 
 let seedingPromise: Promise<void> | null = null;

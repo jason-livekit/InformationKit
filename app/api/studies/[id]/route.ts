@@ -4,7 +4,7 @@ import {
   ForbiddenError,
   NotFoundError,
   UnauthorizedError,
-  loadOwnedStudy,
+  loadAccessibleStudy,
   requireSessionUser,
 } from '@/lib/repo/access';
 import { deleteStudy, updateStudy } from '@/lib/repo/studies';
@@ -35,7 +35,7 @@ export async function PATCH(
   try {
     const user = await requireSessionUser();
     const { id } = await ctx.params;
-    await loadOwnedStudy(id, user.id);
+    await loadAccessibleStudy(id, user.id);
     const body = await request.json().catch(() => null);
     const parsed = UpdateInput.safeParse(body);
     if (!parsed.success) return NextResponse.json({ error: 'Invalid input', issues: parsed.error.issues }, { status: 400 });
@@ -53,7 +53,7 @@ export async function DELETE(
   try {
     const user = await requireSessionUser();
     const { id } = await ctx.params;
-    await loadOwnedStudy(id, user.id);
+    await loadAccessibleStudy(id, user.id);
     await deleteStudy(id);
     return NextResponse.json({ ok: true });
   } catch (e) {

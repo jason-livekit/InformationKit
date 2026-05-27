@@ -33,6 +33,25 @@ export const ProjectSchema = z.object({
   updatedAt: z.number(),
 });
 
+export const ProjectRoleSchema = z.enum(['owner', 'member']);
+
+export const ProjectMemberSchema = z.object({
+  projectId: z.string().min(1),
+  userId: z.string().min(1),
+  role: ProjectRoleSchema,
+  createdAt: z.number(),
+});
+
+export const ProjectInviteSchema = z.object({
+  token: z.string().min(1),
+  projectId: z.string().min(1),
+  email: z.string().email(),
+  role: ProjectRoleSchema,
+  invitedBy: z.string().min(1),
+  createdAt: z.number(),
+  expiresAt: z.number(),
+});
+
 export const StudySchema = z.object({
   id: z.string().min(1),
   projectId: z.string().min(1),
@@ -68,6 +87,9 @@ export type Card = z.infer<typeof CardSchema>;
 export type Group = z.infer<typeof GroupSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
+export type ProjectRole = z.infer<typeof ProjectRoleSchema>;
+export type ProjectMember = z.infer<typeof ProjectMemberSchema>;
+export type ProjectInvite = z.infer<typeof ProjectInviteSchema>;
 export type Study = z.infer<typeof StudySchema>;
 export type StudyStatus = z.infer<typeof StudyStatusSchema>;
 export type StudyType = z.infer<typeof StudyTypeSchema>;
