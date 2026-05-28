@@ -9,6 +9,12 @@ export interface DraftGroup {
 export interface DraftState {
   unsorted: string[];
   groups: DraftGroup[];
+  /**
+   * Monotonically increasing counter used to auto-name new groups `Group N`.
+   * Never decrements on delete (Figma-style). Optional for backward compat:
+   * older drafts without this field will derive it from existing group labels.
+   */
+  nextGroupNumber?: number;
 }
 
 const LEGACY_KEY = 'card-sort:draft';
