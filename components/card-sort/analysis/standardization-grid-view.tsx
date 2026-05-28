@@ -27,6 +27,7 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
 
   const [sortColumn, setSortColumn] = React.useState<string | null>(null);
   const [sortDir, setSortDir] = React.useState<SortDir>('desc');
+  const [hover, setHover] = React.useState<{ rowId: string; colId: string } | null>(null);
 
   const sortedRows = React.useMemo(() => {
     const list = [...rows];
@@ -46,9 +47,21 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
     });
   }, [rows, sortColumn, sortDir]);
 
+  const isSorted = sortColumn !== null;
+
+  function resetSort() {
+    setSortColumn(null);
+    setSortDir('desc');
+  }
+
+  /** Desc → asc → default order on repeated clicks of the same header. */
   function onSortColumn(columnId: string) {
     if (sortColumn === columnId) {
-      setSortDir((d) => (d === 'desc' ? 'asc' : 'desc'));
+      if (sortDir === 'desc') {
+        setSortDir('asc');
+      } else {
+        resetSort();
+      }
     } else {
       setSortColumn(columnId);
       setSortDir('desc');
@@ -85,14 +98,39 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
           No cards in this study.
         </div>
       ) : (
-        <div className="border-separator1 bg-bg1 overflow-auto rounded-lg border">
+        <div className="flex flex-col gap-2">
+          {isSorted && (
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={resetSort}
+                className="text-fg3 hover:text-fgAccent1 font-mono text-[10px] font-bold uppercase tracking-wider underline-offset-2 hover:underline"
+              >
+                Reset sort
+              </button>
+            </div>
+          )}
+          <div
+            className="border-separator1 bg-bg1 overflow-auto rounded-lg border"
+            onMouseLeave={() => setHover(null)}
+          >
           <table className="w-full min-w-max border-separate border-spacing-0">
             <thead>
               <tr>
-                <th className="bg-bg1 border-b-separator1 border-r-separator1 sticky left-0 z-10 min-w-[160px] border-b border-r px-4 py-2 text-left">
+                <th
+                  className={cn(
+                    'bg-bg1 border-b-separator1 border-r-separator1 sticky left-0 z-10 min-w-[160px] border-b border-r px-4 py-2 text-left transition-colors',
+                    hover?.colId === '__name__' && 'bg-bgAccent1/40',
+                  )}
+                >
                   <button
                     type="button"
-                    className="text-fg3 hover:text-fg1 inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider"
+                    className={cn(
+                      'inline-flex items-center gap-1 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors',
+                      sortColumn === '__name__' || hover?.colId === '__name__'
+                        ? 'text-fgAccent1'
+                        : 'text-fg3 hover:text-fg1',
+                    )}
                     onClick={() => onSortColumn('__name__')}
                   >
                     Name
@@ -102,12 +140,20 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
                 {columns.map((col) => (
                   <th
                     key={col.id}
-                    className="border-b-separator1 border-b px-2 py-2 text-center"
+                    className={cn(
+                      'border-b-separator1 border-b px-2 py-2 text-center transition-colors',
+                      hover?.colId === col.id && 'bg-bgAccent1/40',
+                    )}
                     style={{ minWidth: 72 }}
                   >
                     <button
                       type="button"
-                      className="text-fg3 hover:text-fg1 inline-flex max-w-full items-center justify-center gap-0.5 font-mono text-[10px] font-bold uppercase tracking-wider"
+                      className={cn(
+                        'inline-flex max-w-full items-center justify-center gap-0.5 font-mono text-[10px] font-bold uppercase tracking-wider transition-colors',
+                        sortColumn === col.id || hover?.colId === col.id
+                          ? 'text-fgAccent1'
+                          : 'text-fg3 hover:text-fg1',
+                      )}
                       onClick={() => onSortColumn(col.id)}
                       title={col.name}
                     >
@@ -123,14 +169,27 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
                 <tr key={row.card.id}>
                   <th
                     className={cn(
-                      'bg-bg1 border-r-separator1 sticky left-0 z-10 border-r px-4 py-1.5 text-left',
+                      'bg-bg1 border-r-separator1 sticky left-0 z-10 border-r px-4 py-1.5 text-left transition-colors',
                       rowIdx < sortedRows.length - 1 && 'border-b-separator1 border-b',
+                      hover?.rowId === row.card.id && 'bg-bgAccent1/40',
                     )}
                   >
                     <div className="flex min-w-0 flex-col">
-                      <span className="text-fg0 truncate text-sm font-medium">{row.card.label}</span>
+                      <span
+                        className={cn(
+                          'truncate text-sm font-medium transition-colors',
+                          hover?.rowId === row.card.id ? 'text-fgAccent1' : 'text-fg0',
+                        )}
+                      >
+                        {row.card.label}
+                      </span>
                       {row.card.context && (
-                        <span className="text-fg4 font-mono text-[10px] uppercase tracking-wider">
+                        <span
+                          className={cn(
+                            'font-mono text-[10px] uppercase tracking-wider transition-colors',
+                            hover?.rowId === row.card.id ? 'text-fgAccent1/70' : 'text-fg4',
+                          )}
+                        >
                           {row.card.context}
                         </span>
                       )}
@@ -138,23 +197,31 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
                   </th>
                   {columns.map((col) => {
                     const count = row.countsByColumn[col.id] ?? 0;
+                    const isHovered =
+                      hover?.rowId === row.card.id && hover?.colId === col.id;
                     return (
                       <td
                         key={col.id}
                         className={cn(
-                          'p-0 text-center',
+                          'p-0 text-center transition-colors',
                           rowIdx < sortedRows.length - 1 && 'border-b-separator1 border-b',
+                          (hover?.rowId === row.card.id || hover?.colId === col.id) &&
+                            'bg-bgAccent1/15',
                         )}
                         title={
                           count === 0
                             ? `${row.card.label} · ${col.name}: no placements`
                             : `${row.card.label} · ${col.name}: ${count} of ${total} participant${total === 1 ? '' : 's'}`
                         }
+                        onMouseEnter={() =>
+                          setHover({ rowId: row.card.id, colId: col.id })
+                        }
                       >
                         <div
                           className={cn(
-                            'flex h-9 min-w-[3rem] items-center justify-center font-mono text-sm font-bold tabular-nums',
+                            'flex h-9 min-w-[3rem] items-center justify-center font-mono text-sm font-bold tabular-nums ring-inset transition-shadow',
                             cellTextClass(count, maxCount),
+                            isHovered && 'ring-2 ring-fgAccent1/50',
                           )}
                           style={heatmapStyle(count, maxCount)}
                         >
@@ -167,6 +234,7 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>
