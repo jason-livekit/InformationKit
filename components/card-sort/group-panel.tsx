@@ -37,8 +37,8 @@ export function GroupPanel({
   handleListeners,
   isDragging,
 }: GroupPanelProps) {
-  const [editing, setEditing] = React.useState(label.trim() === '' || label === 'Untitled group');
-  const [draft, setDraft] = React.useState(label === 'Untitled group' ? '' : label);
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(label);
   const inputRef = React.useRef<HTMLInputElement>(null);
 
   React.useEffect(() => {
@@ -50,9 +50,15 @@ export function GroupPanel({
     }
   }, [editing]);
 
+  // Empty input reverts to the previous label (Figma-style — you can't have an empty
+  // layer name). Auto-named groups skip edit-on-create entirely; user clicks to rename.
   const commit = () => {
-    const next = draft.trim() || 'Untitled group';
-    onRename(next);
+    const next = draft.trim();
+    if (next && next !== label) {
+      onRename(next);
+    } else {
+      setDraft(label);
+    }
     setEditing(false);
   };
 
@@ -104,7 +110,7 @@ export function GroupPanel({
             <button
               type="button"
               onClick={() => {
-                setDraft(label === 'Untitled group' ? '' : label);
+                setDraft(label);
                 setEditing(true);
               }}
               className="text-fg0 hover:text-fgAccent1 truncate text-left text-sm font-semibold"

@@ -97,8 +97,8 @@ interface GroupState {
   notUsefulCount: number;
 }
 
-function newGroup(cardIds: string[] = []): GroupState {
-  return { id: uid('g_'), label: 'Untitled group', cardIds, notUsefulCount: 0 };
+function newGroup(label: string, cardIds: string[] = []): GroupState {
+  return { id: uid('g_'), label, cardIds, notUsefulCount: 0 };
 }
 
 const groupUseful = (g: GroupState) => g.cardIds.slice(0, g.cardIds.length - g.notUsefulCount);
@@ -107,6 +107,26 @@ const groupNotUseful = (g: GroupState) => g.cardIds.slice(g.cardIds.length - g.n
 interface State {
   unsorted: string[];
   groups: GroupState[];
+  /** Figma-style counter: incremented on every new group, never reused after delete. */
+  nextGroupNumber: number;
+}
+
+/**
+ * Derive the counter from a set of existing groups by finding the highest `Group N`
+ * label and returning N+1. Defaults to 1 if no labels match. Used when initializing
+ * fresh state from predefined groups, and when loading legacy drafts that pre-date
+ * the counter field.
+ */
+function deriveNextGroupNumber(groups: ReadonlyArray<{ label: string }>): number {
+  let max = 0;
+  for (const g of groups) {
+    const m = /^Group (\d+)$/.exec(g.label);
+    if (m) {
+      const n = parseInt(m[1]!, 10);
+      if (n > max) max = n;
+    }
+  }
+  return max + 1;
 }
 
 function defaultStateFor(cards: CardItem[], predefinedGroups: Group[]): State {
@@ -119,6 +139,7 @@ function defaultStateFor(cards: CardItem[], predefinedGroups: Group[]): State {
       cardIds: [...g.cardIds],
       notUsefulCount: 0,
     })),
+    nextGroupNumber: deriveNextGroupNumber(predefinedGroups),
   };
 }
 
@@ -206,13 +227,23 @@ export function CardSort({
     const cleanUnsorted = draft.unsorted.filter((id) => knownIds.has(id) && !inGroups.has(id));
     const present = new Set<string>([...inGroups, ...cleanUnsorted]);
     const missing = cards.map((c) => c.id).filter((id) => !present.has(id));
-    setState({ unsorted: [...cleanUnsorted, ...missing], groups: cleanGroups });
+    // Legacy drafts (pre-counter) won't have nextGroupNumber persisted; derive it from
+    // existing labels so the next created group continues the sequence.
+    const nextGroupNumber = draft.nextGroupNumber ?? deriveNextGroupNumber(cleanGroups);
+    setState({ unsorted: [...cleanUnsorted, ...missing], groups: cleanGroups, nextGroupNumber });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draftKey]);
 
   React.useEffect(() => {
     if (readOnly) return;
-    saveDraft({ unsorted: state.unsorted, groups: state.groups }, draftKey);
+    saveDraft(
+      {
+        unsorted: state.unsorted,
+        groups: state.groups,
+        nextGroupNumber: state.nextGroupNumber,
+      },
+      draftKey,
+    );
   }, [state, draftKey, readOnly]);
 
   const sensors = useSensors(
@@ -327,7 +358,8 @@ export function CardSort({
     setState((prev) => {
       const next = structuredClone(prev) as State;
       removeCard(next, cardId, fromContainer);
-      next.groups.push(newGroup([cardId]));
+      next.groups.push(newGroup(`Group ${next.nextGroupNumber}`, [cardId]));
+      next.nextGroupNumber += 1;
       return next;
     });
     setHasChanges(true);
@@ -445,7 +477,11 @@ export function CardSort({
   };
 
   const onAddGroup = () => {
-    setState((prev) => ({ ...prev, groups: [...prev.groups, newGroup()] }));
+    setState((prev) => ({
+      ...prev,
+      groups: [...prev.groups, newGroup(`Group ${prev.nextGroupNumber}`)],
+      nextGroupNumber: prev.nextGroupNumber + 1,
+    }));
     setHasChanges(true);
   };
 
@@ -461,7 +497,10 @@ export function CardSort({
     setState((prev) => {
       const g = prev.groups.find((x) => x.id === id);
       if (!g) return prev;
+      // nextGroupNumber is intentionally NOT decremented — Figma-style numbering
+      // continues forward even after deletes.
       return {
+        ...prev,
         unsorted: [...prev.unsorted, ...g.cardIds],
         groups: prev.groups.filter((x) => x.id !== id),
       };

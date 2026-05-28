@@ -14,7 +14,7 @@ export default function SignInLayout({
           <svg
             width={26}
             height={26}
-            viewBox="0 0 28 28"
+            viewBox="72 72 240 240"
             fill="none"
             role="img"
             aria-label="LiveKit logo"
@@ -22,14 +22,14 @@ export default function SignInLayout({
             className="text-fg0 transition-transform group-hover:scale-105"
           >
             <g className="text-fgAccent1">
-              <path d="M16.8005 11.1995H11.1996V16.8003H16.8005V11.1995Z" fill="currentcolor" />
-              <path d="M22.4013 5.60083H16.8004V11.2017H22.4013V5.60083Z" fill="currentcolor" />
-              <path d="M22.4013 16.8005H16.8004V22.4014H22.4013V16.8005Z" fill="currentcolor" />
-              <path d="M28 0H22.3991V5.60087H28V0Z" fill="currentcolor" />
-              <path d="M28 22.3992H22.3991V28H28V22.3992Z" fill="currentcolor" />
+              <path d="M216.004 167.996H167.996V216.004H216.004V167.996Z" fill="currentcolor" />
+              <path d="M264.011 120.008H216.004V168.015H264.011V120.008Z" fill="currentcolor" />
+              <path d="M264.011 216.004H216.004V264.011H264.011V216.004Z" fill="currentcolor" />
+              <path d="M312 72H263.992V120.007H312V72Z" fill="currentcolor" />
+              <path d="M312 263.992H263.992V312H312V263.992Z" fill="currentcolor" />
             </g>
             <path
-              d="M5.60088 22.3991V16.8004V11.1996V5.60088V0H0V5.60088V11.1996V16.8004V22.3991V28H5.60088H11.1996H16.8004V22.3991H11.1996H5.60088Z"
+              d="M120.008 263.992V216.004V167.996V120.008V72H72V120.008V167.996V216.004V263.992V312H120.008V263.992Z"
               fill="currentcolor"
             />
           </svg>
