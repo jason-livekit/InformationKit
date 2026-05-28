@@ -151,6 +151,19 @@ describe('buildAnalysis — Similarity matrix (matches Optimal Workshop)', () =>
   it('Bank accounts ↔ Business banking = 50', () => expect(sim('ba', 'bb')).toBe(50));
   it('Credit cards ↔ Business banking = 50', () => expect(sim('cc', 'bb')).toBe(50));
   it('Bank accounts ↔ Home loans = 0', () => expect(sim('ba', 'hl')).toBe(0));
+
+  it('merging Banking + Business raises cross-group banking affinity to 100%', () => {
+    const std = mergeLabels({ categories: [] }, ['banking', 'business'], 'Banking');
+    const merged = buildAnalysis({ ...study, standardization: std }, submissions);
+    const simMerged = (a: string, b: string) => {
+      const i = merged.similarity.order.findIndex((c) => c.id === a);
+      const j = merged.similarity.order.findIndex((c) => c.id === b);
+      return merged.similarity.matrix[i]![j]!;
+    };
+    expect(simMerged('ba', 'bb')).toBe(100);
+    expect(simMerged('cc', 'bb')).toBe(100);
+    expect(simMerged('hl', 'bl')).toBe(100);
+  });
 });
 
 describe('buildAnalysis — Dendrograms', () => {

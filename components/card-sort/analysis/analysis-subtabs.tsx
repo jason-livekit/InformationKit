@@ -78,7 +78,9 @@ export function AnalysisSubtabs({
       </div>
 
       <div>
-        {active === 'overview' && <ResultsDashboard results={results} />}
+        {active === 'overview' && (
+          <ResultsDashboard model={model} notUsefulByCard={results.notUsefulByCard} />
+        )}
         {active === 'cards' && <CardsView model={model} />}
         {active === 'categories' && (
           <CategoriesView

@@ -333,17 +333,36 @@ export function buildAnalysis(
     return { card, standardizedCount, notStandardizedCount, total: subs.size };
   });
 
-  // ── Similarity matrix (per-participant co-occurrence) ──
+  // ── Similarity matrix (per-participant co-occurrence in analytical categories) ──
+  // Uses the same standardized/raw category identities as the Cards and Categories
+  // views so merging labels updates similarity, dendrograms, and exports together.
   const coOccur = new Map<string, Map<string, number>>();
   for (const card of cards) coOccur.set(card.id, new Map());
   for (const sub of submissions) {
-    const seenPairs = new Set<string>();
+    const cardCategory = new Map<string, string>();
     for (const group of sub.groups) {
-      const ids = [...new Set(group.cardIds)].filter((id) => cardById.has(id));
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = i + 1; j < ids.length; j++) {
-          const a = ids[i]!;
-          const b = ids[j]!;
+      const label = normalizeGroupLabel(group.label) || 'untitled';
+      const { id: categoryId } = identityForLabel(label);
+      for (const cardId of new Set(group.cardIds)) {
+        if (!cardById.has(cardId)) continue;
+        cardCategory.set(cardId, categoryId);
+      }
+    }
+
+    const byCategory = new Map<string, string[]>();
+    for (const [cardId, categoryId] of cardCategory) {
+      const list = byCategory.get(categoryId);
+      if (list) list.push(cardId);
+      else byCategory.set(categoryId, [cardId]);
+    }
+
+    const seenPairs = new Set<string>();
+    for (const ids of byCategory.values()) {
+      const unique = [...new Set(ids)];
+      for (let i = 0; i < unique.length; i++) {
+        for (let j = i + 1; j < unique.length; j++) {
+          const a = unique[i]!;
+          const b = unique[j]!;
           const key = a < b ? `${a}|${b}` : `${b}|${a}`;
           if (seenPairs.has(key)) continue;
           seenPairs.add(key);

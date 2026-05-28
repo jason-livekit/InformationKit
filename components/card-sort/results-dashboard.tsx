@@ -2,30 +2,26 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/bytes/utils';
-import type { AggregatedResults } from '@/lib/card-sort/aggregate';
+import type { AnalysisModel } from '@/lib/card-sort/analysis';
 import { DotFill } from './dot-fill';
 
 interface ResultsDashboardProps {
-  results: AggregatedResults;
+  model: AnalysisModel;
+  /** Raw not-useful counts — not part of the analysis model. */
+  notUsefulByCard?: Record<string, number>;
 }
 
-export function ResultsDashboard({ results }: ResultsDashboardProps) {
-  const {
-    totalSubmissions,
-    notUsefulByCard,
-    groupNameTotals,
-    groupNameCountsByCard,
-    pairCounts,
-    cards: CARDS,
-  } = results;
+export function ResultsDashboard({ model, notUsefulByCard = {} }: ResultsDashboardProps) {
+  const totalSubmissions = model.totalParticipants;
 
   const sortedGroupNames = React.useMemo(
     () =>
-      Object.entries(groupNameTotals)
-        .sort((a, b) => b[1] - a[1])
+      model.categoryRows
+        .slice()
+        .sort((a, b) => b.participantCount - a.participantCount)
         .slice(0, 12)
-        .map(([name]) => name),
-    [groupNameTotals],
+        .map((r) => r.name),
+    [model.categoryRows],
   );
 
   if (totalSubmissions === 0) {
@@ -36,15 +32,15 @@ export function ResultsDashboard({ results }: ResultsDashboardProps) {
     <div className="flex flex-col gap-8">
       <SummaryCards
         totalSubmissions={totalSubmissions}
-        groupCount={Object.keys(groupNameTotals).length}
+        groupCount={model.categoryRows.length}
         notUsefulByCard={notUsefulByCard}
       />
 
       <Section
         title="Group themes"
-        description="The most common group names users created. Names are normalized (lowercase, punctuation stripped) so close variants merge."
+        description="Categories used in analysis, including any standardized merges you've defined."
       >
-        <GroupThemes groupNameTotals={groupNameTotals} totalSubmissions={totalSubmissions} />
+        <GroupThemes categories={model.categoryRows} totalSubmissions={totalSubmissions} />
       </Section>
 
       <Section
@@ -52,23 +48,18 @@ export function ResultsDashboard({ results }: ResultsDashboardProps) {
         description="For each card, the share of users who put it in a popular group, left it ungrouped, or marked it as not useful."
       >
         <CardPlacementTable
-          cards={CARDS}
+          cardRows={model.cardRows}
           notUsefulByCard={notUsefulByCard}
-          groupNameCountsByCard={groupNameCountsByCard}
           totalSubmissions={totalSubmissions}
-          topGroupNames={sortedGroupNames}
+          topCategoryNames={sortedGroupNames}
         />
       </Section>
 
       <Section
         title="Co-occurrence"
-        description="How often two cards ended up in the same group. Higher = stronger affinity."
+        description="How often two cards ended up in the same analytical category. Higher = stronger affinity."
       >
-        <CoOccurrenceMatrix
-          cards={CARDS}
-          pairCounts={pairCounts}
-          totalSubmissions={totalSubmissions}
-        />
+        <CoOccurrenceMatrix model={model} />
       </Section>
     </div>
   );
@@ -156,15 +147,17 @@ function Stat({
 }
 
 function GroupThemes({
-  groupNameTotals,
+  categories,
   totalSubmissions,
 }: {
-  groupNameTotals: Record<string, number>;
+  categories: AnalysisModel['categoryRows'];
   totalSubmissions: number;
 }) {
-  const items = Object.entries(groupNameTotals)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 16);
+  const items = categories
+    .slice()
+    .sort((a, b) => b.participantCount - a.participantCount)
+    .slice(0, 16)
+    .map((c) => [c.name, c.participantCount] as const);
 
   if (items.length === 0) {
     return (
@@ -206,17 +199,15 @@ function GroupThemes({
 }
 
 function CardPlacementTable({
-  cards: CARDS,
+  cardRows,
   notUsefulByCard,
-  groupNameCountsByCard,
   totalSubmissions,
-  topGroupNames,
+  topCategoryNames,
 }: {
-  cards: AggregatedResults['cards'];
+  cardRows: AnalysisModel['cardRows'];
   notUsefulByCard: Record<string, number>;
-  groupNameCountsByCard: Record<string, Record<string, number>>;
   totalSubmissions: number;
-  topGroupNames: string[];
+  topCategoryNames: string[];
 }) {
   return (
     <div className="border-separator1 bg-bg1 overflow-hidden rounded-lg border">
@@ -226,13 +217,10 @@ function CardPlacementTable({
         <span className="text-right">Not useful</span>
       </div>
       <div className="divide-separator1 divide-y">
-        {CARDS.map((card) => {
-          const groupCounts = groupNameCountsByCard[card.id] ?? {};
-          const groupedTotal = Object.values(groupCounts).reduce((a, b) => a + b, 0);
+        {cardRows.map(({ card, categories }) => {
+          const groupedTotal = categories.reduce((sum, c) => sum + c.frequency, 0);
           const notUseful = notUsefulByCard[card.id] ?? 0;
-          const topGroups = Object.entries(groupCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 3);
+          const topGroups = categories.slice(0, 3);
           const notUsefulPct =
             totalSubmissions > 0 ? (notUseful / totalSubmissions) * 100 : 0;
           return (
@@ -252,10 +240,10 @@ function CardPlacementTable({
                 {groupedTotal === 0 ? (
                   <span className="text-fg4 text-xs italic">never grouped</span>
                 ) : (
-                  topGroups.map(([name, count]) => {
-                    const pct = totalSubmissions > 0 ? (count / totalSubmissions) * 100 : 0;
+                  topGroups.map((c) => {
+                    const pct = totalSubmissions > 0 ? (c.frequency / totalSubmissions) * 100 : 0;
                     return (
-                      <GroupChip key={name} name={name} count={count} pct={pct} />
+                      <GroupChip key={c.categoryId} name={c.name} count={c.frequency} pct={pct} />
                     );
                   })
                 )}
@@ -267,9 +255,9 @@ function CardPlacementTable({
           );
         })}
       </div>
-      {topGroupNames.length > 0 && (
+      {topCategoryNames.length > 0 && (
         <div className="border-t-separator1 bg-bg2/40 text-fg4 border-t px-4 py-2 text-xs">
-          Top recurring group names: {topGroupNames.slice(0, 6).join(' · ')}
+          Top categories in analysis: {topCategoryNames.slice(0, 6).join(' · ')}
         </div>
       )}
     </div>
@@ -309,26 +297,20 @@ function NotUsefulPill({ count, pct }: { count: number; pct: number }) {
   );
 }
 
-function CoOccurrenceMatrix({
-  cards,
-  pairCounts,
-  totalSubmissions,
-}: {
-  cards: AggregatedResults['cards'];
-  pairCounts: Record<string, Record<string, number>>;
-  totalSubmissions: number;
-}) {
-  // limit displayed labels to keep this readable on narrower screens
+function CoOccurrenceMatrix({ model }: { model: AnalysisModel }) {
+  const cards = model.similarity.order;
+  const matrix = model.similarity.matrix;
+
   const max = React.useMemo(() => {
     let m = 0;
-    for (const a of cards) {
-      for (const b of cards) {
-        const v = pairCounts[a.id]?.[b.id] ?? 0;
+    for (let i = 0; i < cards.length; i++) {
+      for (let j = 0; j < cards.length; j++) {
+        const v = matrix[i]?.[j] ?? 0;
         if (v > m) m = v;
       }
     }
     return m || 1;
-  }, [cards, pairCounts]);
+  }, [cards, matrix]);
 
   return (
     <div className="border-separator1 bg-bg1 overflow-hidden rounded-lg border">
@@ -352,7 +334,7 @@ function CoOccurrenceMatrix({
             </tr>
           </thead>
           <tbody>
-            {cards.map((row) => (
+            {cards.map((row, rowIdx) => (
               <tr key={row.id}>
                 <th className="bg-bg1 border-r-separator1 border-b-separator1 sticky left-0 z-10 border-b border-r p-2 text-left text-[11px] font-medium text-fg2 whitespace-nowrap">
                   {row.label}
@@ -360,11 +342,10 @@ function CoOccurrenceMatrix({
                     <span className="text-fg4 ml-1 font-mono text-[9px] uppercase">{row.context}</span>
                   )}
                 </th>
-                {cards.map((col) => {
-                  const v = pairCounts[row.id]?.[col.id] ?? 0;
+                {cards.map((col, colIdx) => {
+                  const pct = matrix[rowIdx]?.[colIdx] ?? 0;
                   const isDiag = row.id === col.id;
-                  const pct = totalSubmissions > 0 ? (v / totalSubmissions) * 100 : 0;
-                  const opacity = isDiag ? 0 : Math.min(1, v / max);
+                  const opacity = isDiag ? 0 : Math.min(1, pct / max);
                   return (
                     <td
                       key={col.id}
@@ -376,7 +357,7 @@ function CoOccurrenceMatrix({
                       title={
                         isDiag
                           ? row.label
-                          : `${row.label} ↔ ${col.label}: ${v} co-occurrences (${pct.toFixed(0)}%)`
+                          : `${row.label} ↔ ${col.label}: ${pct}% agreement`
                       }
                     >
                       {!isDiag && (
