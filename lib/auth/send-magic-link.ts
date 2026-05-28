@@ -9,18 +9,14 @@ export interface MagicLinkPayload {
 export interface SendResult {
   /** True if delivered through an email transport (Resend). */
   emailed: boolean;
-  /**
-   * The sign-in URL, returned to the client only when email delivery is NOT configured
-   * (so the prototype is usable without setting up Resend). When `emailed` is true, this
-   * is null — users should sign in via the link in their inbox.
-   */
-  fallbackLink: string | null;
 }
 
 /**
- * Sends the magic link via Resend if RESEND_API_KEY is set. Otherwise returns the link so
- * the sign-in page can render it inline — this keeps the prototype usable out of the box
- * without an email transport. Always logs to the server console as a backup.
+ * Sends the magic link via Resend if RESEND_API_KEY is set. When email delivery is not
+ * configured or fails, the link is logged to the server console only — it is never
+ * returned to the client. This prevents anyone hitting /sign-in from harvesting a working
+ * sign-in URL for an arbitrary email. In local dev without Resend, read the link from
+ * your terminal.
  */
 export async function sendMagicLink(payload: MagicLinkPayload): Promise<SendResult> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -43,7 +39,7 @@ export async function sendMagicLink(payload: MagicLinkPayload): Promise<SendResu
         }),
       });
       if (res.ok) {
-        return { emailed: true, fallbackLink: null };
+        return { emailed: true };
       }
       const text = await res.text();
       console.error('[magic-link] Resend send failed:', res.status, text);
@@ -52,9 +48,8 @@ export async function sendMagicLink(payload: MagicLinkPayload): Promise<SendResu
     }
   }
 
-  // No transport (or transport failed): surface the link in the response.
   console.log(`[magic-link] for ${payload.email}: ${payload.url}`);
-  return { emailed: false, fallbackLink: payload.url };
+  return { emailed: false };
 }
 
 function renderHtml({ url }: MagicLinkPayload): string {

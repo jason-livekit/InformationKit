@@ -41,23 +41,22 @@ Sign-in works via a one-time email link. The flow:
 1. User enters an email at `/sign-in`.
 2. The server issues a single-use token (15-minute TTL, stored in the KV).
 3. The link is delivered:
-   - **With `RESEND_API_KEY` set** — sent via [Resend](https://resend.com).
-   - **Without it** — surfaced directly on the sign-in confirmation screen as a "Sign in
-     as you@example.com" button, and also logged to the server console. Convenient for
-     prototyping, less appropriate for a real multi-user deployment — set `RESEND_API_KEY`
-     once you have users you don't want each other signing in as.
+   - **With `RESEND_API_KEY` set** — emailed via [Resend](https://resend.com).
+   - **Without it** — logged to the server console only. It is never returned to the
+     browser, so a visitor can't harvest a working sign-in link for someone else's email.
 4. User opens the link → `/sign-in/verify?token=…` → token is consumed → session cookie set.
 
 Put these in `.env.local`:
 
 ```
 AUTH_SECRET=...   # required in prod; `openssl rand -hex 32`
-RESEND_API_KEY=...           # optional, only needed to actually email links
+RESEND_API_KEY=...           # required to email links; without it, links go to server console only
 MAGIC_LINK_FROM=...          # optional, e.g. "You <you@yourdomain.com>"
 ```
 
-In development, both env vars are optional — leave them blank and the link prints to your
-terminal (and shows up on the sign-in page).
+In local dev without `RESEND_API_KEY`, the sign-in page will show "Couldn't send sign-in
+link" — read the link from your terminal (`[magic-link] for you@example.com: …`) and paste
+it into your browser.
 
 ### Storage
 

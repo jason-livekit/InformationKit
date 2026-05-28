@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Button } from '@/components/bytes/Button';
-import { CircleCheckIcon, CircleInfoIcon, ArrowRightIcon } from '@/icons/react';
+import { CircleCheckIcon, CircleInfoIcon } from '@/icons/react';
 import { DotFill } from '@/components/card-sort/dot-fill';
 
 interface SignInFormProps {
@@ -13,14 +13,12 @@ interface RequestResponse {
   ok?: boolean;
   email?: string;
   emailed?: boolean;
-  fallbackLink?: string | null;
   error?: string;
 }
 
 interface Sent {
   email: string;
   emailed: boolean;
-  fallbackLink: string | null;
 }
 
 export function SignInForm({ next }: SignInFormProps) {
@@ -48,7 +46,6 @@ export function SignInForm({ next }: SignInFormProps) {
       setSent({
         email: body.email ?? email,
         emailed: body.emailed ?? false,
-        fallbackLink: body.fallbackLink ?? null,
       });
     } finally {
       setSubmitting(false);
@@ -56,10 +53,6 @@ export function SignInForm({ next }: SignInFormProps) {
   }
 
   if (sent) {
-    const finalLink = sent.fallbackLink
-      ? withNext(sent.fallbackLink, next)
-      : null;
-
     if (sent.emailed) {
       return (
         <ResultCard
@@ -76,27 +69,17 @@ export function SignInForm({ next }: SignInFormProps) {
       );
     }
 
-    // No email transport configured — show the link directly.
     return (
       <ResultCard
-        icon={<CircleInfoIcon className="text-fgModerate relative h-7 w-7" />}
-        title="Email delivery isn't configured"
+        icon={<CircleInfoIcon className="text-fgSerious1 relative h-7 w-7" />}
+        title="Couldn't send sign-in link"
       >
         <p className="text-fg3 relative max-w-sm text-xs">
-          Normally we&apos;d email a sign-in link to{' '}
-          <strong className="text-fg1 font-semibold">{sent.email}</strong>. Since{' '}
-          <code className="bg-bg2 text-fg1 rounded px-1 py-0.5 font-mono text-[10px]">
-            RESEND_API_KEY
-          </code>{' '}
-          isn&apos;t set, you can sign in directly below. Set it to email links to real users.
+          We weren&apos;t able to email a sign-in link to{' '}
+          <strong className="text-fg1 font-semibold">{sent.email}</strong>. Please try again
+          in a moment. If this keeps happening, contact the admin. In local dev, the link is
+          printed to the server console.
         </p>
-        {finalLink && (
-          <a href={finalLink} className="relative">
-            <Button variant="primary" size="lg" rightIcon={<ArrowRightIcon />}>
-              Sign in as {sent.email}
-            </Button>
-          </a>
-        )}
         <ResetLink onClick={() => setSent(null)} />
       </ResultCard>
     );
@@ -154,10 +137,4 @@ function ResetLink({ onClick }: { onClick: () => void }) {
       Use a different email
     </button>
   );
-}
-
-function withNext(url: string, next: string): string {
-  if (!next || next === '/') return url;
-  const sep = url.includes('?') ? '&' : '?';
-  return `${url}${sep}next=${encodeURIComponent(next)}`;
 }
