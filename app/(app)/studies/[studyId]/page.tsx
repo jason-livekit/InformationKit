@@ -78,7 +78,12 @@ export default async function StudyPage({
           <CaptureTab study={study} submissionsCount={submissionsCount} />
         )}
         {tab === 'analysis' && results && (
-          <AnalysisTab study={study} results={results} submissionsCount={submissionsCount} />
+          <AnalysisTab
+            study={study}
+            results={results}
+            submissions={submissions}
+            submissionsCount={submissionsCount}
+          />
         )}
       </div>
     </div>

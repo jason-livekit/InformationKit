@@ -8,7 +8,12 @@ import {
   requireSessionUser,
 } from '@/lib/repo/access';
 import { deleteStudy, updateStudy } from '@/lib/repo/studies';
-import { CardSchema, GroupSchema, StudyStatusSchema } from '@/lib/repo/schemas';
+import {
+  CardSchema,
+  GroupSchema,
+  StandardizationSchema,
+  StudyStatusSchema,
+} from '@/lib/repo/schemas';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -19,6 +24,7 @@ const UpdateInput = z.object({
   status: StudyStatusSchema.optional(),
   cards: z.array(CardSchema).optional(),
   predefinedGroups: z.array(GroupSchema).optional(),
+  standardization: StandardizationSchema.optional(),
 });
 
 function handleErr(e: unknown) {

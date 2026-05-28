@@ -20,7 +20,7 @@ export interface AggregateInput {
   submissions: Submission[];
 }
 
-function normalizeGroupLabel(label: string): string {
+export function normalizeGroupLabel(label: string): string {
   return label
     .toLowerCase()
     .replace(/[\s_/\-]+/g, ' ')

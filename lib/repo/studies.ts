@@ -6,6 +6,7 @@ import {
   type StudyStatus,
   type Card,
   type Group,
+  type Standardization,
 } from './schemas';
 import { makeId, makeSlug } from './ids';
 
@@ -79,6 +80,7 @@ export interface UpdateStudyInput {
   status?: StudyStatus;
   cards?: Card[];
   predefinedGroups?: Group[];
+  standardization?: Standardization;
 }
 
 export async function updateStudy(
