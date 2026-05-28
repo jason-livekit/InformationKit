@@ -16,6 +16,26 @@ export const GroupSchema = z.object({
 export const StudyTypeSchema = z.enum(['card-sort']);
 export const StudyStatusSchema = z.enum(['draft', 'open', 'closed']);
 
+/**
+ * A standardized category groups together one or more raw participant-created
+ * category labels (normalized) under a single canonical name. This powers the
+ * analysis "Standardize" feature, which merges variants like "Banking", "bank",
+ * and "Accounts" into one comparable category. Grouping by normalized label
+ * (rather than by per-submission instance) keeps standardization stable as new
+ * submissions arrive.
+ */
+export const StandardizedCategorySchema = z.object({
+  id: z.string().min(1),
+  /** Canonical display name shown across the analysis. */
+  name: z.string(),
+  /** Normalized raw labels merged into this standardized category. */
+  labels: z.array(z.string()),
+});
+
+export const StandardizationSchema = z.object({
+  categories: z.array(StandardizedCategorySchema),
+});
+
 export const UserSchema = z.object({
   id: z.string().min(1),
   email: z.string().email(),
@@ -62,6 +82,8 @@ export const StudySchema = z.object({
   shareSlug: z.string().min(1),
   cards: z.array(CardSchema),
   predefinedGroups: z.array(GroupSchema),
+  /** Analysis-time merging of participant categories. Absent until first edited. */
+  standardization: StandardizationSchema.optional(),
   createdAt: z.number(),
   updatedAt: z.number(),
 });
@@ -85,6 +107,8 @@ export const SubmissionInputSchema = z.object({
 
 export type Card = z.infer<typeof CardSchema>;
 export type Group = z.infer<typeof GroupSchema>;
+export type StandardizedCategory = z.infer<typeof StandardizedCategorySchema>;
+export type Standardization = z.infer<typeof StandardizationSchema>;
 export type User = z.infer<typeof UserSchema>;
 export type Project = z.infer<typeof ProjectSchema>;
 export type ProjectRole = z.infer<typeof ProjectRoleSchema>;
