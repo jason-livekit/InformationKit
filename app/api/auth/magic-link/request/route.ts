@@ -44,7 +44,6 @@ export async function POST(request: Request) {
     ok: true,
     email,
     emailed: result.emailed,
-    fallbackLink: result.fallbackLink,
     expiresAt,
   });
 }
