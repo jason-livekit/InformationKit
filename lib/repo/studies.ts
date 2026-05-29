@@ -56,6 +56,29 @@ async function uniqueSlug(): Promise<string> {
   return makeSlug(3);
 }
 
+/**
+ * Create a fresh copy of an existing study in the same project. Carries over the
+ * setup (name, description, type, cards, predefined groups) but resets everything
+ * that belongs to a specific run: the copy starts as a draft with a new id and
+ * share slug, no submissions, and no standardization (which only makes sense once
+ * real submissions exist). Returns null if the source study no longer exists.
+ */
+export async function duplicateStudy(
+  sourceId: string,
+  overrides?: { name?: string },
+): Promise<Study | null> {
+  const source = await getStudy(sourceId);
+  if (!source) return null;
+  return createStudy({
+    projectId: source.projectId,
+    name: overrides?.name ?? `${source.name} (copy)`,
+    type: source.type,
+    description: source.description,
+    cards: source.cards,
+    predefinedGroups: source.predefinedGroups,
+  });
+}
+
 export async function getStudy(id: string): Promise<Study | null> {
   return getKV().jsonGet<Study>(studyKey(id));
 }

@@ -9,7 +9,9 @@ import {
   listStudiesByProject,
   updateStudy,
   deleteStudy,
+  duplicateStudy,
 } from './studies';
+import { addSubmission, countSubmissions } from './submissions';
 
 beforeEach(() => {
   __resetMemoryStoreForTests();
@@ -65,6 +67,58 @@ describe('studies repo', () => {
     expect(updated!.cards).toHaveLength(1);
     expect(updated!.predefinedGroups).toHaveLength(1);
     expect(updated!.updatedAt).toBeGreaterThanOrEqual(s.updatedAt);
+  });
+
+  it('duplicates a study: copies setup, resets run-specific fields', async () => {
+    const { project } = await setup();
+    const source = await updateStudy(
+      (await createStudy({ projectId: project.id, name: 'IA sort', type: 'card-sort' })).id,
+      {
+        description: 'desc',
+        status: 'open',
+        cards: [{ id: 'c1', label: 'One' }, { id: 'c2', label: 'Two' }],
+        predefinedGroups: [{ id: 'g1', label: 'Group', cardIds: ['c1'] }],
+        standardization: { categories: [{ id: 's1', name: 'Cat', labels: ['cat'] }] },
+      },
+    );
+    await addSubmission(source!.id, { groups: [], unsorted: ['c1', 'c2'], notUseful: [] });
+
+    const copy = await duplicateStudy(source!.id);
+    expect(copy).not.toBeNull();
+    // New identity, fresh slug.
+    expect(copy!.id).not.toBe(source!.id);
+    expect(copy!.shareSlug).not.toBe(source!.shareSlug);
+    // Same project, default "(copy)" name suffix.
+    expect(copy!.projectId).toBe(project.id);
+    expect(copy!.name).toBe('IA sort (copy)');
+    // Setup carried over.
+    expect(copy!.description).toBe('desc');
+    expect(copy!.type).toBe('card-sort');
+    expect(copy!.cards).toEqual(source!.cards);
+    expect(copy!.predefinedGroups).toEqual(source!.predefinedGroups);
+    // Run-specific state reset.
+    expect(copy!.status).toBe('draft');
+    expect(copy!.standardization).toBeUndefined();
+    expect(await countSubmissions(copy!.id)).toBe(0);
+    // Source untouched, including its submissions.
+    expect(await countSubmissions(source!.id)).toBe(1);
+  });
+
+  it('adds the duplicate to the project study list and looks it up by slug', async () => {
+    const { project } = await setup();
+    const source = await createStudy({ projectId: project.id, name: 'A', type: 'card-sort' });
+    const copy = await duplicateStudy(source.id);
+    const studies = await listStudiesByProject(project.id);
+    expect(studies.map((s) => s.id)).toEqual([source.id, copy!.id]);
+    expect((await getStudyByShareSlug(copy!.shareSlug))?.id).toBe(copy!.id);
+  });
+
+  it('accepts a name override and returns null for a missing source', async () => {
+    const { project } = await setup();
+    const source = await createStudy({ projectId: project.id, name: 'A', type: 'card-sort' });
+    const copy = await duplicateStudy(source.id, { name: 'Custom name' });
+    expect(copy!.name).toBe('Custom name');
+    expect(await duplicateStudy('st_missing')).toBeNull();
   });
 
   it('deletes a study, its slug index, and the project list entry', async () => {

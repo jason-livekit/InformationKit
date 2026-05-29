@@ -11,6 +11,7 @@ import { Badge } from '@/components/bytes/Badge';
 import { ArrowLeftIcon, CirclePlusIcon } from '@/icons/react';
 import { ProjectHeader } from './project-header';
 import { MembersPanel, type MemberRow } from './members-panel';
+import { StudyRowActions } from './study-row-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -97,12 +98,9 @@ export default async function ProjectPage({
                     })}
                   </td>
                   <td className="text-right">
-                    <Link
-                      href={`/studies/${study.id}`}
-                      className="text-fgAccent1 text-xs font-semibold hover:underline"
-                    >
-                      Open →
-                    </Link>
+                    <div className="flex justify-end">
+                      <StudyRowActions studyId={study.id} />
+                    </div>
                   </td>
                 </tr>
               ))}
