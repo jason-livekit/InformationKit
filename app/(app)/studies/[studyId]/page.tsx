@@ -11,6 +11,7 @@ import { SetupTab } from '@/components/study/setup-tab';
 import { CaptureTab } from '@/components/study/capture-tab';
 import { AnalysisTab } from '@/components/study/analysis-tab';
 import { StudyStatusSwitcher } from '@/components/study/study-status-switcher';
+import { DuplicateStudyButton } from '@/components/study/duplicate-study-button';
 
 export const dynamic = 'force-dynamic';
 
@@ -62,6 +63,7 @@ export default async function StudyPage({
         </div>
         <div className="flex items-center gap-2">
           <StudyStatusSwitcher studyId={study.id} initialStatus={study.status} />
+          <DuplicateStudyButton studyId={study.id} />
           <Link href={`/preview/${study.id}`} target="_blank" rel="noopener noreferrer">
             <Button variant="secondary" size="sm" rightIcon={<ArrowUpRightIcon />}>
               Preview
