@@ -4,25 +4,42 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import type { Study, Card, Group } from '@/lib/repo/schemas';
 import { Button } from '@/components/bytes/Button';
-import { CirclePlusIcon, TrashCanIcon } from '@/icons/react';
+import { ArrowUndoUpIcon, CirclePlusIcon, TrashCanIcon } from '@/icons/react';
 import { cn } from '@/lib/bytes/utils';
 
 interface SetupTabProps {
   study: Study;
+  submissionsCount: number;
 }
 
 function uid(prefix: string) {
   return `${prefix}${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export function SetupTab({ study }: SetupTabProps) {
+export function SetupTab({ study, submissionsCount }: SetupTabProps) {
   const router = useRouter();
   const [name, setName] = React.useState(study.name);
   const [description, setDescription] = React.useState(study.description);
   const [cards, setCards] = React.useState<Card[]>(study.cards);
   const [groups, setGroups] = React.useState<Group[]>(study.predefinedGroups);
   const [saving, setSaving] = React.useState<'idle' | 'saving' | 'saved'>('idle');
+  const [resetting, setResetting] = React.useState(false);
   const dirtyRef = React.useRef(false);
+
+  async function resetSubmissions() {
+    if (submissionsCount === 0) return;
+    const confirmation = prompt(
+      `Permanently delete all ${submissionsCount} submission(s) for "${study.name}"? Type RESET to confirm.`,
+    );
+    if (confirmation !== 'RESET') return;
+    setResetting(true);
+    try {
+      await fetch(`/api/studies/${study.id}/submissions`, { method: 'DELETE' });
+      router.refresh();
+    } finally {
+      setResetting(false);
+    }
+  }
 
   React.useEffect(() => {
     if (!dirtyRef.current) return;
@@ -183,6 +200,31 @@ export function SetupTab({ study }: SetupTabProps) {
             ))}
           </ul>
         )}
+      </Section>
+
+      <Section
+        title="Danger zone"
+        description="Destructive actions. Cannot be undone."
+      >
+        <div className="border-separatorSerious1 bg-bgSerious1/40 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3">
+          <div className="flex flex-col gap-0.5">
+            <h3 className="text-fg0 text-sm font-semibold">Reset submissions</h3>
+            <p className="text-fg3 text-xs">
+              {submissionsCount === 0
+                ? 'No submissions to reset.'
+                : `Permanently delete all ${submissionsCount} submission${submissionsCount === 1 ? '' : 's'} for this study.`}
+            </p>
+          </div>
+          <Button
+            variant="destructive"
+            size="sm"
+            leftIcon={<ArrowUndoUpIcon />}
+            disabled={resetting || submissionsCount === 0}
+            onClick={resetSubmissions}
+          >
+            {resetting ? 'Resetting…' : 'Reset submissions'}
+          </Button>
+        </div>
       </Section>
 
       <div

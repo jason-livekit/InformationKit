@@ -2,9 +2,7 @@
 
 import * as React from 'react';
 import { cn } from '@/lib/bytes/utils';
-import type { AggregatedResults } from '@/lib/card-sort/aggregate';
 import type { AnalysisModel } from '@/lib/card-sort/analysis';
-import { ResultsDashboard } from '@/components/card-sort/results-dashboard';
 import { ExportActions } from './export-actions';
 import { CardsView } from './cards-view';
 import { CategoriesView } from './categories-view';
@@ -13,7 +11,6 @@ import { SimilarityMatrixView } from './similarity-matrix-view';
 import { DendrogramsView } from './dendrograms-view';
 
 export type AnalysisSubtab =
-  | 'overview'
   | 'cards'
   | 'categories'
   | 'grid'
@@ -21,7 +18,6 @@ export type AnalysisSubtab =
   | 'dendrograms';
 
 const TABS: { key: AnalysisSubtab; label: string }[] = [
-  { key: 'overview', label: 'Overview' },
   { key: 'cards', label: 'Cards' },
   { key: 'categories', label: 'Categories' },
   { key: 'grid', label: 'Standardization grid' },
@@ -31,7 +27,6 @@ const TABS: { key: AnalysisSubtab; label: string }[] = [
 
 interface AnalysisSubtabsProps {
   model: AnalysisModel;
-  results: AggregatedResults;
   busy: boolean;
   onStandardize: (labels: string[], name: string) => void;
   onUnstandardize: (ids: string[]) => void;
@@ -40,13 +35,12 @@ interface AnalysisSubtabsProps {
 
 export function AnalysisSubtabs({
   model,
-  results,
   busy,
   onStandardize,
   onUnstandardize,
   onRename,
 }: AnalysisSubtabsProps) {
-  const [active, setActive] = React.useState<AnalysisSubtab>('overview');
+  const [active, setActive] = React.useState<AnalysisSubtab>('cards');
 
   return (
     <div className="flex flex-col gap-5">
@@ -78,9 +72,6 @@ export function AnalysisSubtabs({
       </div>
 
       <div>
-        {active === 'overview' && (
-          <ResultsDashboard model={model} notUsefulByCard={results.notUsefulByCard} />
-        )}
         {active === 'cards' && <CardsView model={model} />}
         {active === 'categories' && (
           <CategoriesView
