@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { loadAccessibleStudy, requireSessionUser } from '@/lib/repo/access';
 import { listSubmissions, countSubmissions } from '@/lib/repo/submissions';
-import { aggregate } from '@/lib/card-sort/aggregate';
 import { Badge } from '@/components/bytes/Badge';
 import { Button } from '@/components/bytes/Button';
 import { ArrowLeftIcon, ArrowUpRightIcon } from '@/icons/react';
@@ -39,7 +38,6 @@ export default async function StudyPage({
 
   const submissionsCount = await countSubmissions(study.id);
   const submissions = tab === 'analysis' ? await listSubmissions(study.id) : [];
-  const results = tab === 'analysis' ? aggregate({ cards: study.cards, submissions }) : null;
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-6 py-8">
@@ -75,14 +73,13 @@ export default async function StudyPage({
       <StudyTabs studyId={study.id} active={tab} submissionsCount={submissionsCount} />
 
       <div className="border-separator1 bg-bg1 rounded-lg border p-5">
-        {tab === 'setup' && <SetupTab study={study} />}
+        {tab === 'setup' && <SetupTab study={study} submissionsCount={submissionsCount} />}
         {tab === 'capture' && (
           <CaptureTab study={study} submissionsCount={submissionsCount} />
         )}
-        {tab === 'analysis' && results && (
+        {tab === 'analysis' && (
           <AnalysisTab
             study={study}
-            results={results}
             submissions={submissions}
             submissionsCount={submissionsCount}
           />

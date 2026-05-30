@@ -1,9 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { useRouter } from 'next/navigation';
 import type { Study, Submission, Standardization } from '@/lib/repo/schemas';
-import type { AggregatedResults } from '@/lib/card-sort/aggregate';
 import { buildAnalysis } from '@/lib/card-sort/analysis';
 import {
   getStandardization,
@@ -12,20 +10,15 @@ import {
   renameCategory,
 } from '@/lib/card-sort/standardize';
 import { AnalysisSubtabs } from '@/components/card-sort/analysis/analysis-subtabs';
-import { Button } from '@/components/bytes/Button';
 import { Toaster, toast } from '@/components/bytes/Toaster';
-import { ArrowUndoUpIcon } from '@/icons/react';
 
 interface AnalysisTabProps {
   study: Study;
-  results: AggregatedResults;
   submissions: Submission[];
   submissionsCount: number;
 }
 
-export function AnalysisTab({ study, results, submissions, submissionsCount }: AnalysisTabProps) {
-  const router = useRouter();
-  const [resetting, setResetting] = React.useState(false);
+export function AnalysisTab({ study, submissions, submissionsCount }: AnalysisTabProps) {
   const [saving, setSaving] = React.useState(false);
   const [standardization, setStandardization] = React.useState<Standardization>(() =>
     getStandardization(study.standardization),
@@ -62,40 +55,18 @@ export function AnalysisTab({ study, results, submissions, submissionsCount }: A
     }
   }
 
-  async function reset() {
-    if (!confirm('Delete all submissions for this study? This cannot be undone.')) return;
-    setResetting(true);
-    try {
-      await fetch(`/api/studies/${study.id}/submissions`, { method: 'DELETE' });
-      router.refresh();
-    } finally {
-      setResetting(false);
-    }
-  }
-
   return (
     <div className="flex flex-col gap-5">
       <Toaster position="top-center" />
-      <div className="flex items-center justify-between gap-2">
-        <p className="text-fg3 text-sm">
+      <div className="flex flex-col gap-0.5">
+        <h2 className="text-fg0 text-sm font-semibold">Results</h2>
+        <p className="text-fg3 max-w-xl text-xs">
           {submissionsCount} submission{submissionsCount === 1 ? '' : 's'} captured.
         </p>
-        {submissionsCount > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            leftIcon={<ArrowUndoUpIcon />}
-            disabled={resetting}
-            onClick={reset}
-          >
-            {resetting ? 'Resetting…' : 'Reset submissions'}
-          </Button>
-        )}
       </div>
 
       <AnalysisSubtabs
         model={model}
-        results={results}
         busy={saving}
         onStandardize={(labels, name) => persist(mergeLabels(standardization, labels, name))}
         onUnstandardize={(ids) => persist(removeCategories(standardization, ids))}
