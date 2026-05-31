@@ -4,20 +4,21 @@ import {
   ForbiddenError,
   NotFoundError,
   UnauthorizedError,
-  loadOwnedProject,
-  loadProjectAccess,
+  loadAccessibleMap,
   requireSessionUser,
 } from '@/lib/repo/access';
-import { deleteProject, updateProject } from '@/lib/repo/projects';
-import { deleteStudy, listStudiesByProject } from '@/lib/repo/studies';
-import { deleteMap, listMapsByProject } from '@/lib/repo/maps';
+import { deleteMap, updateMap } from '@/lib/repo/maps';
+import { MapCardSchema, SwimlaneSchema } from '@/lib/repo/schemas';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const UpdateInput = z.object({
-  name: z.string().min(1).max(120).optional(),
-  description: z.string().max(2000).optional(),
+  name: z.string().min(1).max(160).optional(),
+  description: z.string().max(4000).optional(),
+  swimlanes: z.array(SwimlaneSchema).optional(),
+  cards: z.array(MapCardSchema).optional(),
+  columnCount: z.number().int().min(1).max(2000).optional(),
 });
 
 function handleErr(e: unknown) {
@@ -34,12 +35,12 @@ export async function PATCH(
   try {
     const user = await requireSessionUser();
     const { id } = await ctx.params;
-    await loadProjectAccess(id, user.id);
+    await loadAccessibleMap(id, user.id);
     const body = await request.json().catch(() => null);
     const parsed = UpdateInput.safeParse(body);
-    if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 400 });
-    const project = await updateProject(id, parsed.data);
-    return NextResponse.json({ project });
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid input', issues: parsed.error.issues }, { status: 400 });
+    const map = await updateMap(id, parsed.data);
+    return NextResponse.json({ map });
   } catch (e) {
     return handleErr(e);
   }
@@ -52,16 +53,8 @@ export async function DELETE(
   try {
     const user = await requireSessionUser();
     const { id } = await ctx.params;
-    await loadOwnedProject(id, user.id);
-    const studies = await listStudiesByProject(id);
-    for (const s of studies) {
-      await deleteStudy(s.id);
-    }
-    const maps = await listMapsByProject(id);
-    for (const m of maps) {
-      await deleteMap(m.id);
-    }
-    await deleteProject(id);
+    await loadAccessibleMap(id, user.id);
+    await deleteMap(id);
     return NextResponse.json({ ok: true });
   } catch (e) {
     return handleErr(e);

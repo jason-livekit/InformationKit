@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { auth } from '@/auth';
 
-const PROTECTED_PREFIXES = ['/projects', '/studies', '/preview', '/invite'];
-const PROTECTED_API_PREFIXES = ['/api/projects', '/api/studies'];
+const PROTECTED_PREFIXES = ['/projects', '/studies', '/maps', '/preview', '/invite'];
+const PROTECTED_API_PREFIXES = ['/api/projects', '/api/studies', '/api/maps'];
 
 /** Outside participants submit to an open study without signing in. Only POST is public;
  *  the route handler still guards GET/DELETE (owner-only) on this same path. */
