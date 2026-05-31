@@ -76,11 +76,13 @@ export function toCSV(model: AnalysisModel, scope: AnalysisScope): string {
       return csvRows(rows);
     }
     case 'grid': {
-      const rows: (string | number)[][] = [
-        ['Card', 'Standardized', 'Not standardized', 'Total participants'],
-      ];
-      for (const r of model.grid) {
-        rows.push([r.card.label, r.standardizedCount, r.notStandardizedCount, r.total]);
+      const header = ['Card', ...model.grid.columns.map((c) => c.name)];
+      const rows: (string | number)[][] = [header];
+      for (const r of model.grid.rows) {
+        rows.push([
+          r.card.label,
+          ...model.grid.columns.map((c) => r.countsByColumn[c.id] ?? 0),
+        ]);
       }
       return csvRows(rows);
     }
@@ -208,17 +210,16 @@ function mdCategories(model: AnalysisModel): string {
 }
 
 function mdGrid(model: AnalysisModel): string {
-  const rows = model.grid.map((r) => [
+  const header = ['Card', ...model.grid.columns.map((c) => c.name)];
+  const rows = model.grid.rows.map((r) => [
     r.card.label,
-    r.standardizedCount,
-    r.notStandardizedCount,
-    r.total,
+    ...model.grid.columns.map((c) => r.countsByColumn[c.id] ?? 0),
   ]);
   return [
     `## Standardization grid`,
-    `Per card, how many placements fall in standardized vs not-yet-standardized categories (out of ${model.totalParticipants} participants).`,
+    `Cards as rows and standardized categories as columns. Cell values are participant counts (out of ${model.totalParticipants}).`,
     ``,
-    mdTable(['Card', 'Standardized', 'Not standardized', 'Total'], rows),
+    mdTable(header, rows),
   ].join('\n');
 }
 
@@ -330,13 +331,16 @@ function jsonData(model: AnalysisModel, scope: AnalysisScope): Record<string, un
         avgPosition: m.avgPosition,
       })),
     }));
-  const grid = () =>
-    model.grid.map((r) => ({
+  const grid = () => ({
+    columns: model.grid.columns.map((c) => c.name),
+    rows: model.grid.rows.map((r) => ({
       card: r.card.label,
-      standardized: r.standardizedCount,
-      notStandardized: r.notStandardizedCount,
+      counts: Object.fromEntries(
+        model.grid.columns.map((c) => [c.name, r.countsByColumn[c.id] ?? 0]),
+      ),
       total: r.total,
-    }));
+    })),
+  });
   const similarity = () => ({
     order: model.similarity.order.map((c) => c.label),
     matrix: model.similarity.matrix,

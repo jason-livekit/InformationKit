@@ -117,24 +117,35 @@ describe('buildAnalysis — Categories view', () => {
 });
 
 describe('buildAnalysis — Standardization grid', () => {
-  it('counts every card as placed by both participants', () => {
+  it('counts every card as placed by both participants in the not-standardized column', () => {
     const model = buildAnalysis(study, submissions);
-    for (const row of model.grid) {
+    expect(model.grid.columns).toHaveLength(1);
+    expect(model.grid.columns[0]!.name).toBe('Not standardized');
+    for (const row of model.grid.rows) {
       expect(row.total).toBe(2);
       expect(row.notStandardizedCount).toBe(2);
       expect(row.standardizedCount).toBe(0);
+      expect(row.countsByColumn[model.grid.columns[0]!.id]).toBe(2);
     }
   });
 
   it('moves placements into the standardized column once standardized', () => {
     const std = mergeLabels({ categories: [] }, ['banking'], 'Banking');
     const model = buildAnalysis({ ...study, standardization: std }, submissions);
-    const ba = model.grid.find((r) => r.card.id === 'ba')!;
+    const bankingCol = model.grid.columns.find((c) => c.name === 'Banking')!;
+    const notStdCol = model.grid.columns.find((c) => !c.standardized)!;
+
+    const ba = model.grid.rows.find((r) => r.card.id === 'ba')!;
     expect(ba.standardizedCount).toBe(2);
     expect(ba.notStandardizedCount).toBe(0);
-    const bb = model.grid.find((r) => r.card.id === 'bb')!;
+    expect(ba.countsByColumn[bankingCol.id]).toBe(2);
+    expect(ba.countsByColumn[notStdCol.id]).toBe(0);
+
+    const bb = model.grid.rows.find((r) => r.card.id === 'bb')!;
     expect(bb.standardizedCount).toBe(1); // only P1's Banking; P2 used Business
     expect(bb.notStandardizedCount).toBe(1);
+    expect(bb.countsByColumn[bankingCol.id]).toBe(1);
+    expect(bb.countsByColumn[notStdCol.id]).toBe(1);
   });
 });
 

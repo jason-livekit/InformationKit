@@ -64,14 +64,32 @@ export interface CategoryRow {
   agreement: number | null;
 }
 
+/** Synthetic column id for placements not yet merged into a standardized category. */
+export const GRID_NOT_STANDARDIZED_ID = '__not_standardized__';
+
+export interface GridColumn {
+  id: string;
+  name: string;
+  standardized: boolean;
+}
+
 export interface GridRow {
   card: Card;
+  /** Participant count per grid column (standardized categories + not-standardized). */
+  countsByColumn: Record<string, number>;
   /** Placements that fall inside a standardized category. */
   standardizedCount: number;
   /** Placements still in raw, un-standardized categories. */
   notStandardizedCount: number;
   /** Participants who sorted this card at all. */
   total: number;
+}
+
+export interface StandardizationGridModel {
+  columns: GridColumn[];
+  rows: GridRow[];
+  /** Highest cell value; used for heatmap scaling (capped at total participants). */
+  maxCount: number;
 }
 
 export interface SimilarityModel {
@@ -94,7 +112,7 @@ export interface AnalysisModel {
   cards: Card[];
   cardRows: CardRow[];
   categoryRows: CategoryRow[];
-  grid: GridRow[];
+  grid: StandardizationGridModel;
   similarity: SimilarityModel;
   dendrograms: DendrogramModel;
   /** Number of standardized categories currently defined. */
@@ -319,19 +337,54 @@ export function buildAnalysis(
       a.name.localeCompare(b.name),
   );
 
-  // ── Standardization grid ──
-  const grid: GridRow[] = cards.map((card) => {
+  // ── Standardization grid (cards × standardized categories + not-standardized) ──
+  const stdColumns: GridColumn[] = categoryRows
+    .filter((r) => r.standardized)
+    .map((r) => ({ id: r.id, name: r.name, standardized: true }));
+
+  const gridColumns: GridColumn[] = [
+    ...stdColumns,
+    { id: GRID_NOT_STANDARDIZED_ID, name: 'Not standardized', standardized: false },
+  ];
+
+  const gridRows: GridRow[] = cardRows.map((row) => {
+    const countsByColumn: Record<string, number> = Object.fromEntries(
+      gridColumns.map((col) => [col.id, 0]),
+    );
     let standardizedCount = 0;
     let notStandardizedCount = 0;
-    const subs = new Set<string>();
-    for (const inst of instances) {
-      if (!inst.positions.has(card.id)) continue;
-      subs.add(inst.submissionId);
-      if (labelToCategory.has(inst.label)) standardizedCount += 1;
-      else notStandardizedCount += 1;
+
+    for (const cat of row.categories) {
+      if (cat.standardized) {
+        countsByColumn[cat.categoryId] = cat.frequency;
+        standardizedCount += cat.frequency;
+      } else {
+        notStandardizedCount += cat.frequency;
+        countsByColumn[GRID_NOT_STANDARDIZED_ID] =
+          (countsByColumn[GRID_NOT_STANDARDIZED_ID] ?? 0) + cat.frequency;
+      }
     }
-    return { card, standardizedCount, notStandardizedCount, total: subs.size };
+
+    return {
+      card: row.card,
+      countsByColumn,
+      standardizedCount,
+      notStandardizedCount,
+      total: row.frequency,
+    };
   });
+
+  const maxCount = Math.max(
+    totalParticipants,
+    ...gridRows.flatMap((r) => Object.values(r.countsByColumn)),
+    1,
+  );
+
+  const grid: StandardizationGridModel = {
+    columns: gridColumns,
+    rows: gridRows,
+    maxCount,
+  };
 
   // ── Similarity matrix (per-participant co-occurrence in analytical categories) ──
   // Uses the same standardized/raw category identities as the Cards and Categories
