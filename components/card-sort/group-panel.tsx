@@ -11,6 +11,8 @@ export interface GroupPanelProps {
   count: number;
   onRename: (label: string) => void;
   onDelete: () => void;
+  /** Closed card sort: the group is fixed — no renaming, no deleting. */
+  locked?: boolean;
   className?: string;
   children: React.ReactNode;
   /** Sortable node ref + transform style, for reordering the group itself. */
@@ -28,6 +30,7 @@ export function GroupPanel({
   count,
   onRename,
   onDelete,
+  locked = false,
   className,
   children,
   innerRef,
@@ -88,7 +91,9 @@ export function GroupPanel({
         )}
         <FolderBookmarksIcon className="text-fg3 relative h-4 w-4 shrink-0" />
         <div className="relative flex min-w-0 flex-1 items-center gap-2">
-          {editing ? (
+          {locked ? (
+            <span className="text-fg0 truncate text-sm font-semibold">{label}</span>
+          ) : editing ? (
             <input
               ref={inputRef}
               value={draft}
@@ -122,14 +127,16 @@ export function GroupPanel({
         <span className="bg-bg2 text-fg3 relative inline-flex h-5 min-w-5 items-center justify-center rounded px-1 font-mono text-[10px] font-bold tabular-nums">
           {count}
         </span>
-        <button
-          type="button"
-          onClick={onDelete}
-          aria-label="Delete group"
-          className="text-fg4 hover:text-fgSerious1 hover:bg-bgSerious1 relative inline-flex h-6 w-6 items-center justify-center rounded transition-colors"
-        >
-          <TrashCanIcon className="h-3.5 w-3.5" />
-        </button>
+        {!locked && (
+          <button
+            type="button"
+            onClick={onDelete}
+            aria-label="Delete group"
+            className="text-fg4 hover:text-fgSerious1 hover:bg-bgSerious1 relative inline-flex h-6 w-6 items-center justify-center rounded transition-colors"
+          >
+            <TrashCanIcon className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
       <div className="relative flex flex-1 flex-col gap-2 p-3">{children}</div>
     </div>

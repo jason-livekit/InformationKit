@@ -4,6 +4,7 @@ import {
   type Study,
   type StudyType,
   type StudyStatus,
+  type SortType,
   type Card,
   type Group,
   type Standardization,
@@ -21,6 +22,8 @@ export interface CreateStudyInput {
   description?: string;
   cards?: Card[];
   predefinedGroups?: Group[];
+  sortType?: SortType;
+  randomizeCards?: boolean;
   shareSlug?: string;
 }
 
@@ -38,6 +41,8 @@ export async function createStudy(input: CreateStudyInput): Promise<Study> {
     shareSlug,
     cards: input.cards ?? [],
     predefinedGroups: input.predefinedGroups ?? [],
+    sortType: input.sortType ?? 'hybrid',
+    randomizeCards: input.randomizeCards ?? false,
     createdAt: now,
     updatedAt: now,
   });
@@ -76,6 +81,8 @@ export async function duplicateStudy(
     description: source.description,
     cards: source.cards,
     predefinedGroups: source.predefinedGroups,
+    sortType: source.sortType,
+    randomizeCards: source.randomizeCards,
   });
 }
 
@@ -103,6 +110,8 @@ export interface UpdateStudyInput {
   status?: StudyStatus;
   cards?: Card[];
   predefinedGroups?: Group[];
+  sortType?: SortType;
+  randomizeCards?: boolean;
   standardization?: Standardization;
 }
 

@@ -110,6 +110,17 @@ describe('StudySchema', () => {
   it('accepts a valid card sort study', () => {
     expect(() => StudySchema.parse(valid)).not.toThrow();
   });
+  it('defaults sortType to hybrid (pre-existing behavior) and randomizeCards to false when absent', () => {
+    const parsed = StudySchema.parse(valid);
+    expect(parsed.sortType).toBe('hybrid');
+    expect(parsed.randomizeCards).toBe(false);
+  });
+  it.each(['open', 'hybrid', 'closed'] as const)('accepts sortType %s', (sortType) => {
+    expect(StudySchema.parse({ ...valid, sortType }).sortType).toBe(sortType);
+  });
+  it('rejects an unknown sortType', () => {
+    expect(() => StudySchema.parse({ ...valid, sortType: 'mixed' })).toThrow();
+  });
   it('rejects an unknown study type', () => {
     expect(() => StudySchema.parse({ ...valid, type: 'survey' })).toThrow();
   });

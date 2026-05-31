@@ -24,6 +24,8 @@ export default async function PreviewPage({
       studyDescription={study.description}
       cards={study.cards}
       predefinedGroups={study.predefinedGroups}
+      sortType={study.sortType ?? 'hybrid'}
+      randomizeCards={study.randomizeCards ?? false}
     />
   );
 }

@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { CardSort } from '@/components/card-sort/card-sort';
-import type { Card, Group, SubmissionInput } from '@/lib/repo/schemas';
+import type { Card, Group, SortType, SubmissionInput } from '@/lib/repo/schemas';
 import { Badge } from '@/components/bytes/Badge';
 import { CircleCheckIcon } from '@/icons/react';
 import { DotFill } from '@/components/card-sort/dot-fill';
@@ -13,6 +13,8 @@ interface ShareSortClientProps {
   studyDescription: string;
   cards: Card[];
   predefinedGroups: Group[];
+  sortType: SortType;
+  randomizeCards: boolean;
   closed: boolean;
 }
 
@@ -22,6 +24,8 @@ export function ShareSortClient({
   studyDescription,
   cards,
   predefinedGroups,
+  sortType,
+  randomizeCards,
   closed,
 }: ShareSortClientProps) {
   const [submitted, setSubmitted] = React.useState(false);
@@ -76,10 +80,15 @@ export function ShareSortClient({
     setSubmitted(true);
   }
 
+  // Open sorts hide the author's predefined groups; hybrid and closed show them.
+  const groups = sortType === 'open' ? [] : predefinedGroups;
+
   return (
     <CardSort
       cards={cards}
-      predefinedGroups={predefinedGroups}
+      predefinedGroups={groups}
+      randomizeCards={randomizeCards}
+      lockGroups={sortType === 'closed'}
       draftKey={`card-sort:draft:${studyId}`}
       title={studyName}
       subtitle={studyDescription || 'Drag cards into groups, mark anything irrelevant as not useful, then submit.'}

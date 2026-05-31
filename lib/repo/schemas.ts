@@ -17,6 +17,15 @@ export const StudyTypeSchema = z.enum(['card-sort']);
 export const StudyStatusSchema = z.enum(['draft', 'open', 'closed']);
 
 /**
+ * How participants interact with the study author's predefined groups:
+ * - `open`   – predefined groups are hidden; participants create every group themselves.
+ * - `hybrid` – predefined groups are shown as a starting point, and participants may add more.
+ * - `closed` – predefined groups are shown and fixed; participants sort into them and cannot
+ *              add, rename, or remove groups.
+ */
+export const SortTypeSchema = z.enum(['open', 'hybrid', 'closed']);
+
+/**
  * A standardized category groups together one or more raw participant-created
  * category labels (normalized) under a single canonical name. This powers the
  * analysis "Standardize" feature, which merges variants like "Banking", "bank",
@@ -82,6 +91,14 @@ export const StudySchema = z.object({
   shareSlug: z.string().min(1),
   cards: z.array(CardSchema),
   predefinedGroups: z.array(GroupSchema),
+  /**
+   * Open / hybrid / closed. Controls whether predefined groups are shown and editable.
+   * Defaults to `hybrid` — the behavior that predates this field — so existing studies
+   * (and their predefined groups) keep working exactly as before.
+   */
+  sortType: SortTypeSchema.default('hybrid'),
+  /** When true, the unsorted cards are shuffled into a random order for each participant. */
+  randomizeCards: z.boolean().default(false),
   /** Analysis-time merging of participant categories. Absent until first edited. */
   standardization: StandardizationSchema.optional(),
   createdAt: z.number(),
@@ -117,5 +134,6 @@ export type ProjectInvite = z.infer<typeof ProjectInviteSchema>;
 export type Study = z.infer<typeof StudySchema>;
 export type StudyStatus = z.infer<typeof StudyStatusSchema>;
 export type StudyType = z.infer<typeof StudyTypeSchema>;
+export type SortType = z.infer<typeof SortTypeSchema>;
 export type Submission = z.infer<typeof SubmissionSchema>;
 export type SubmissionInput = z.infer<typeof SubmissionInputSchema>;

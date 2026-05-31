@@ -11,6 +11,7 @@ import { deleteStudy, updateStudy } from '@/lib/repo/studies';
 import {
   CardSchema,
   GroupSchema,
+  SortTypeSchema,
   StandardizationSchema,
   StudyStatusSchema,
 } from '@/lib/repo/schemas';
@@ -24,6 +25,8 @@ const UpdateInput = z.object({
   status: StudyStatusSchema.optional(),
   cards: z.array(CardSchema).optional(),
   predefinedGroups: z.array(GroupSchema).optional(),
+  sortType: SortTypeSchema.optional(),
+  randomizeCards: z.boolean().optional(),
   standardization: StandardizationSchema.optional(),
 });
 
