@@ -89,7 +89,7 @@ export function ShareSortClient({
       predefinedGroups={groups}
       randomizeCards={randomizeCards}
       lockGroups={sortType === 'closed'}
-      draftKey={`card-sort:draft:${studyId}`}
+      draftKey={`card-sort:draft:${studyId}:${sortType}`}
       title={studyName}
       subtitle={studyDescription || 'Drag cards into groups, mark anything irrelevant as not useful, then submit.'}
       badgeLabel="Card sort"

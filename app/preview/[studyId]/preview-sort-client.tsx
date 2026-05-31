@@ -31,6 +31,7 @@ export function PreviewSortClient({
       predefinedGroups={groups}
       randomizeCards={randomizeCards}
       lockGroups={sortType === 'closed'}
+      persistDraft={false}
       draftKey={`card-sort:preview-draft:${studyId}`}
       title={`Preview · ${studyName}`}
       subtitle={

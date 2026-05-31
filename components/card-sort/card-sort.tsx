@@ -72,6 +72,12 @@ export interface CardSortProps {
   lockGroups?: boolean;
   /** Per-instance localStorage key. Pass a study-scoped key like `card-sort:draft:${studyId}`. */
   draftKey: string;
+  /**
+   * Persist/restore the in-progress sort to localStorage. Defaults to true (participants
+   * shouldn't lose work on reload). Set false for preview, where the board should always
+   * render fresh from the current study settings rather than a stale saved draft.
+   */
+  persistDraft?: boolean;
   /** Title shown in the page header. Defaults to the study description text. */
   title?: string;
   /** Subtitle (description) text. */
@@ -205,6 +211,7 @@ export function CardSort({
   onSubmit,
   onShowResults,
   readOnly = false,
+  persistDraft = true,
 }: CardSortProps) {
   const cardsById = React.useMemo(() => {
     const map: Record<string, CardItem> = {};
@@ -235,7 +242,7 @@ export function CardSort({
   }>({ groupId: null, startY: 0, startCount: 0, total: 0 });
 
   React.useEffect(() => {
-    if (readOnly) return;
+    if (readOnly || !persistDraft) return;
     const draft = loadDraft(draftKey);
     if (!draft) return;
     const cleanGroups: GroupState[] = draft.groups.map((g) => {
@@ -259,7 +266,7 @@ export function CardSort({
   }, [draftKey]);
 
   React.useEffect(() => {
-    if (readOnly) return;
+    if (readOnly || !persistDraft) return;
     saveDraft(
       {
         unsorted: state.unsorted,
@@ -268,7 +275,7 @@ export function CardSort({
       },
       draftKey,
     );
-  }, [state, draftKey, readOnly]);
+  }, [state, draftKey, readOnly, persistDraft]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
