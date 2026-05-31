@@ -214,7 +214,7 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
 
       <Section
         title={`Cards (${cards.length})`}
-        description="Each card is a thing participants will sort. Add a short label, optionally a context tag (e.g. “Token”) for disambiguation."
+        description="Each card is a thing participants will sort. Add a short label, and optionally a longer description to give participants more detail."
         action={
           <Button variant="secondary" size="sm" leftIcon={<CirclePlusIcon />} onClick={addCard}>
             Add card
@@ -233,15 +233,15 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
                   value={c.label}
                   onChange={(e) => updateCard(c.id, { label: e.target.value })}
                   placeholder="Card label"
-                  className="text-fg0 placeholder:text-fg4 flex-1 bg-transparent px-3 py-2 text-sm focus:outline-none"
+                  className="text-fg0 placeholder:text-fg4 w-48 shrink-0 bg-transparent px-3 py-2 text-sm focus:outline-none"
                 />
                 <input
-                  value={c.context ?? ''}
+                  value={c.description ?? ''}
                   onChange={(e) =>
-                    updateCard(c.id, { context: e.target.value.trim() || undefined })
+                    updateCard(c.id, { description: e.target.value || undefined })
                   }
-                  placeholder="Context (optional)"
-                  className="text-fg2 placeholder:text-fg4 border-l-separator1 w-40 border-l bg-transparent px-3 py-2 font-mono text-xs uppercase tracking-wider focus:outline-none"
+                  placeholder="Description (optional)"
+                  className="text-fg2 placeholder:text-fg4 border-l-separator1 flex-1 border-l bg-transparent px-3 py-2 text-sm focus:outline-none"
                 />
                 <button
                   type="button"

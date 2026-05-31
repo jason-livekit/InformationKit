@@ -230,11 +230,6 @@ function CardPlacementTable({
             >
               <div className="flex min-w-0 flex-col">
                 <span className="text-fg0 truncate text-sm font-medium">{card.label}</span>
-                {card.context && (
-                  <span className="text-fg4 truncate font-mono text-[10px] uppercase tracking-wider">
-                    {card.context}
-                  </span>
-                )}
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
                 {groupedTotal === 0 ? (
@@ -327,7 +322,7 @@ function CoOccurrenceMatrix({ model }: { model: AnalysisModel }) {
                 >
                   <div className="text-fg4 mx-auto -rotate-90 origin-bottom-left whitespace-nowrap font-mono text-[9px] font-bold uppercase tracking-wider"
                     style={{ height: 90, width: 14 }}>
-                    <span className="block translate-y-2 translate-x-1">{shortLabel(c.label, c.context)}</span>
+                    <span className="block translate-y-2 translate-x-1">{shortLabel(c.label)}</span>
                   </div>
                 </th>
               ))}
@@ -338,9 +333,6 @@ function CoOccurrenceMatrix({ model }: { model: AnalysisModel }) {
               <tr key={row.id}>
                 <th className="bg-bg1 border-r-separator1 border-b-separator1 sticky left-0 z-10 border-b border-r p-2 text-left text-[11px] font-medium text-fg2 whitespace-nowrap">
                   {row.label}
-                  {row.context && (
-                    <span className="text-fg4 ml-1 font-mono text-[9px] uppercase">{row.context}</span>
-                  )}
                 </th>
                 {cards.map((col, colIdx) => {
                   const pct = matrix[rowIdx]?.[colIdx] ?? 0;
@@ -391,9 +383,8 @@ function CoOccurrenceMatrix({ model }: { model: AnalysisModel }) {
   );
 }
 
-function shortLabel(label: string, ctx?: string) {
-  const stripped = label.replace(/^Avg /i, '').replace(/^Input /i, 'In ').replace(/^Output /i, 'Out ');
-  return ctx ? `${ctx} · ${stripped}` : stripped;
+function shortLabel(label: string) {
+  return label.replace(/^Avg /i, '').replace(/^Input /i, 'In ').replace(/^Output /i, 'Out ');
 }
 
 function EmptyState() {

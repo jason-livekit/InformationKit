@@ -4,7 +4,7 @@ import { toCSV, toMarkdown, toJSON } from './export';
 import type { Card, Submission, Study } from '@/lib/repo/schemas';
 
 const cards: Card[] = [
-  { id: 'a', label: 'Agent', context: 'Realtime' },
+  { id: 'a', label: 'Agent', description: 'A realtime AI participant in a room.' },
   { id: 'b', label: 'Webhook' },
   { id: 'c', label: 'API key' },
 ];

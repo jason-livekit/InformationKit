@@ -42,13 +42,13 @@ export function toCSV(model: AnalysisModel, scope: AnalysisScope): string {
   switch (scope) {
     case 'cards': {
       const rows: (string | number)[][] = [
-        ['Card', 'Context', 'Categories sorted into', 'Frequency', 'Avg position', 'Top categories'],
+        ['Card', 'Categories sorted into', 'Frequency', 'Avg position', 'Top categories'],
       ];
       for (const r of model.cardRows) {
         const top = r.categories
           .map((c) => `${c.name} (freq ${c.frequency}, pos ${c.avgPosition})`)
           .join('; ');
-        rows.push([r.card.label, r.card.context ?? '', r.categoryCount, r.frequency, r.avgPosition, top]);
+        rows.push([r.card.label, r.categoryCount, r.frequency, r.avgPosition, top]);
       }
       return csvRows(rows);
     }
@@ -307,7 +307,6 @@ function jsonData(model: AnalysisModel, scope: AnalysisScope): Record<string, un
   const cards = () =>
     model.cardRows.map((r) => ({
       card: r.card.label,
-      context: r.card.context,
       categoriesSortedInto: r.categoryCount,
       frequency: r.frequency,
       avgPosition: r.avgPosition,

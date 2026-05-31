@@ -13,9 +13,6 @@ describe('CardSchema', () => {
   it('accepts a card with id + label', () => {
     expect(() => CardSchema.parse({ id: 'a', label: 'Apple' })).not.toThrow();
   });
-  it('accepts an optional context', () => {
-    expect(() => CardSchema.parse({ id: 'a', label: 'Apple', context: 'Fruit' })).not.toThrow();
-  });
   it('accepts an optional description', () => {
     expect(() =>
       CardSchema.parse({ id: 'a', label: 'Apple', description: 'A round red fruit.' }),

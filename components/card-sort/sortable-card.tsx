@@ -68,16 +68,6 @@ export const SortableCard = React.forwardRef<HTMLDivElement, SortableCardProps>(
           />
           <div className="min-w-0 flex-1 overflow-hidden">
             <div className="truncate text-sm font-medium leading-tight">{card.label}</div>
-            {card.context && (
-              <div
-                className={cn(
-                  'truncate font-mono text-[10px] uppercase tracking-wider leading-tight',
-                  tone === 'ok' ? 'text-fg4' : 'text-fgSerious1/70',
-                )}
-              >
-                {card.context}
-              </div>
-            )}
           </div>
         </div>
         {card.description && (
@@ -107,9 +97,7 @@ export const SortableCard = React.forwardRef<HTMLDivElement, SortableCardProps>(
               }
             >
               <div className="flex flex-col gap-1">
-                <div className="text-fg0 text-xs font-semibold">
-                  {card.context ? `${card.context} · ${card.label}` : card.label}
-                </div>
+                <div className="text-fg0 text-xs font-semibold">{card.label}</div>
                 <p className="text-fg2 text-xs leading-snug">{card.description}</p>
               </div>
             </ToggleTip>
