@@ -1,7 +1,7 @@
 'use client';
 
 import { CardSort } from '@/components/card-sort/card-sort';
-import type { Card, Group } from '@/lib/repo/schemas';
+import type { Card, Group, SortType } from '@/lib/repo/schemas';
 
 interface PreviewSortClientProps {
   studyId: string;
@@ -9,6 +9,8 @@ interface PreviewSortClientProps {
   studyDescription: string;
   cards: Card[];
   predefinedGroups: Group[];
+  sortType: SortType;
+  randomizeCards: boolean;
 }
 
 export function PreviewSortClient({
@@ -17,11 +19,19 @@ export function PreviewSortClient({
   studyDescription,
   cards,
   predefinedGroups,
+  sortType,
+  randomizeCards,
 }: PreviewSortClientProps) {
+  // Open sorts hide the author's predefined groups; hybrid and closed show them.
+  const groups = sortType === 'open' ? [] : predefinedGroups;
+
   return (
     <CardSort
       cards={cards}
-      predefinedGroups={predefinedGroups}
+      predefinedGroups={groups}
+      randomizeCards={randomizeCards}
+      lockGroups={sortType === 'closed'}
+      persistDraft={false}
       draftKey={`card-sort:preview-draft:${studyId}`}
       title={`Preview · ${studyName}`}
       subtitle={

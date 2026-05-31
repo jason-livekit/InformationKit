@@ -63,8 +63,21 @@ export interface CardSortProps {
   cards: CardItem[];
   /** Optional groups pre-created by the study author. They appear pre-filled (or empty) on first load. */
   predefinedGroups?: Group[];
+  /** Shuffle the unsorted cards into a random order on a fresh start (open/hybrid/closed all supported). */
+  randomizeCards?: boolean;
+  /**
+   * Lock the predefined groups: hide the "New group" affordances and prevent participants from
+   * adding, renaming, or deleting groups. Used by closed card sorts where categories are fixed.
+   */
+  lockGroups?: boolean;
   /** Per-instance localStorage key. Pass a study-scoped key like `card-sort:draft:${studyId}`. */
   draftKey: string;
+  /**
+   * Persist/restore the in-progress sort to localStorage. Defaults to true (participants
+   * shouldn't lose work on reload). Set false for preview, where the board should always
+   * render fresh from the current study settings rather than a stale saved draft.
+   */
+  persistDraft?: boolean;
   /** Title shown in the page header. Defaults to the study description text. */
   title?: string;
   /** Subtitle (description) text. */
@@ -129,10 +142,25 @@ function deriveNextGroupNumber(groups: ReadonlyArray<{ label: string }>): number
   return max + 1;
 }
 
-function defaultStateFor(cards: CardItem[], predefinedGroups: Group[]): State {
+/** Fisher–Yates shuffle into a fresh array. Uses Math.random — order differs per participant. */
+function shuffled<T>(items: T[]): T[] {
+  const out = [...items];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [out[i], out[j]] = [out[j]!, out[i]!];
+  }
+  return out;
+}
+
+function defaultStateFor(
+  cards: CardItem[],
+  predefinedGroups: Group[],
+  randomize = false,
+): State {
   const inGroups = new Set(predefinedGroups.flatMap((g) => g.cardIds));
+  const unsorted = cards.map((c) => c.id).filter((id) => !inGroups.has(id));
   return {
-    unsorted: cards.map((c) => c.id).filter((id) => !inGroups.has(id)),
+    unsorted: randomize ? shuffled(unsorted) : unsorted,
     groups: predefinedGroups.map((g) => ({
       id: g.id,
       label: g.label,
@@ -174,6 +202,8 @@ function removeCard(next: State, cardId: string, fromContainer: string): void {
 export function CardSort({
   cards,
   predefinedGroups = [],
+  randomizeCards = false,
+  lockGroups = false,
   draftKey,
   title = 'Card sort',
   subtitle = 'Drag the cards to group related items, reorder them by importance, and mark anything you don’t care about as not useful.',
@@ -181,6 +211,7 @@ export function CardSort({
   onSubmit,
   onShowResults,
   readOnly = false,
+  persistDraft = true,
 }: CardSortProps) {
   const cardsById = React.useMemo(() => {
     const map: Record<string, CardItem> = {};
@@ -191,7 +222,7 @@ export function CardSort({
 
   const [mounted, setMounted] = React.useState(false);
   const [state, setState] = React.useState<State>(() =>
-    defaultStateFor(cards, predefinedGroups),
+    defaultStateFor(cards, predefinedGroups, randomizeCards),
   );
   const [hasChanges, setHasChanges] = React.useState(false);
   const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -211,7 +242,7 @@ export function CardSort({
   }>({ groupId: null, startY: 0, startCount: 0, total: 0 });
 
   React.useEffect(() => {
-    if (readOnly) return;
+    if (readOnly || !persistDraft) return;
     const draft = loadDraft(draftKey);
     if (!draft) return;
     const cleanGroups: GroupState[] = draft.groups.map((g) => {
@@ -235,7 +266,7 @@ export function CardSort({
   }, [draftKey]);
 
   React.useEffect(() => {
-    if (readOnly) return;
+    if (readOnly || !persistDraft) return;
     saveDraft(
       {
         unsorted: state.unsorted,
@@ -244,7 +275,7 @@ export function CardSort({
       },
       draftKey,
     );
-  }, [state, draftKey, readOnly]);
+  }, [state, draftKey, readOnly, persistDraft]);
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 4 } }),
@@ -452,7 +483,7 @@ export function CardSort({
     const activeContainer = findContainer(activeIdStr);
     if (!activeContainer) return;
 
-    if (overIdStr === NEW_GROUP || findContainer(overIdStr) === NEW_GROUP) {
+    if (!lockGroups && (overIdStr === NEW_GROUP || findContainer(overIdStr) === NEW_GROUP)) {
       moveCardToNewGroup(activeIdStr, activeContainer);
       return;
     }
@@ -509,7 +540,7 @@ export function CardSort({
   };
 
   const onResetDraft = () => {
-    setState(defaultStateFor(cards, predefinedGroups));
+    setState(defaultStateFor(cards, predefinedGroups, randomizeCards));
     setHasChanges(false);
     clearDraft(draftKey);
   };
@@ -582,7 +613,7 @@ export function CardSort({
       };
       await onSubmit(payload);
       clearDraft(draftKey);
-      setState(defaultStateFor(cards, predefinedGroups));
+      setState(defaultStateFor(cards, predefinedGroups, randomizeCards));
       setHasChanges(false);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Something went wrong');
@@ -594,7 +625,13 @@ export function CardSort({
   if (!mounted) {
     return (
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
-        <Header title={title} subtitle={subtitle} badgeLabel={badgeLabel} error={null} />
+        <Header
+          title={title}
+          subtitle={subtitle}
+          badgeLabel={badgeLabel}
+          error={null}
+          lockGroups={lockGroups}
+        />
         <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-[minmax(300px,380px)_1fr]">
           <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
           <div className="border-separator1 bg-bg1 relative h-96 animate-pulse rounded-lg border" />
@@ -613,7 +650,13 @@ export function CardSort({
       modifiers={[restrictToWindowEdges]}
     >
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-6 px-6 pt-8 pb-24">
-        <Header title={title} subtitle={subtitle} badgeLabel={badgeLabel} error={error} />
+        <Header
+          title={title}
+          subtitle={subtitle}
+          badgeLabel={badgeLabel}
+          error={error}
+          lockGroups={lockGroups}
+        />
 
         <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-[minmax(300px,380px)_1fr]">
           <div className="flex flex-col gap-3 md:sticky md:top-[5rem] md:self-start">
@@ -650,19 +693,25 @@ export function CardSort({
               title="Groups"
               countLabel={`${state.groups.length} group${state.groups.length === 1 ? '' : 's'}`}
               action={
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={<CirclePlusIcon />}
-                  onClick={onAddGroup}
-                >
-                  New group
-                </Button>
+                lockGroups ? undefined : (
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<CirclePlusIcon />}
+                    onClick={onAddGroup}
+                  >
+                    New group
+                  </Button>
+                )
               }
             />
 
             {state.groups.length === 0 ? (
-              <NewGroupDropZone variant="empty" onAdd={onAddGroup} />
+              lockGroups ? (
+                <LockedNoGroupsHint />
+              ) : (
+                <NewGroupDropZone variant="empty" onAdd={onAddGroup} />
+              )
             ) : (
               <SortableContext
                 items={state.groups.map((g) => GROUP_SORT_PREFIX + g.id)}
@@ -675,6 +724,7 @@ export function CardSort({
                       group={g}
                       cardsById={cardsById}
                       activeId={activeId}
+                      locked={lockGroups}
                       onRename={(label) => onRenameGroup(g.id, label)}
                       onDelete={() => onDeleteGroup(g.id)}
                       onDividerPressDown={onDividerPressDown}
@@ -682,7 +732,7 @@ export function CardSort({
                       onDividerDragEnd={onDividerDragEnd}
                     />
                   ))}
-                  <NewGroupDropZone variant="tile" onAdd={onAddGroup} />
+                  {!lockGroups && <NewGroupDropZone variant="tile" onAdd={onAddGroup} />}
                 </div>
               </SortableContext>
             )}
@@ -727,6 +777,7 @@ function SortableGroup({
   group,
   cardsById,
   activeId,
+  locked = false,
   onRename,
   onDelete,
   onDividerPressDown,
@@ -736,6 +787,7 @@ function SortableGroup({
   group: GroupState;
   cardsById: Record<string, CardItem>;
   activeId: string | null;
+  locked?: boolean;
   onRename: (label: string) => void;
   onDelete: () => void;
   onDividerPressDown: (groupId: string, clientY: number) => void;
@@ -770,6 +822,7 @@ function SortableGroup({
     <GroupPanel
       label={group.label}
       count={group.cardIds.length}
+      locked={locked}
       onRename={onRename}
       onDelete={onDelete}
       innerRef={setNodeRef}
@@ -1006,11 +1059,13 @@ function Header({
   subtitle,
   badgeLabel,
   error,
+  lockGroups = false,
 }: {
   title: string;
   subtitle: string;
   badgeLabel: string;
   error: string | null;
+  lockGroups?: boolean;
 }) {
   return (
     <div className="flex flex-col gap-4">
@@ -1025,7 +1080,7 @@ function Header({
           <p className="text-fg3 max-w-2xl text-sm">{subtitle}</p>
         </div>
       </div>
-      <InstructionsAccordion />
+      <InstructionsAccordion lockGroups={lockGroups} />
       {error && (
         <div className="border-separatorSerious1 bg-bgSerious1 text-fgSerious1 rounded-md border px-3 py-2 text-sm">
           {error}
@@ -1035,7 +1090,7 @@ function Header({
   );
 }
 
-function InstructionsAccordion() {
+function InstructionsAccordion({ lockGroups = false }: { lockGroups?: boolean }) {
   const [open, setOpen] = React.useState(false);
 
   return (
@@ -1077,13 +1132,22 @@ function InstructionsAccordion() {
           )}
         >
           <ol className="*:text-initial divide-separator1 text-fg1 list-inside list-decimal divide-y px-3 text-sm font-semibold *:font-normal">
-            <InstructionsStep title="Group related items.">
-              <p className="text-fg2 mt-1.5 ml-5 font-normal">
-                Drag a card into the group area to start a group, or click{' '}
-                <span className="font-semibold">New group</span>. Rename a group any time, and drag
-                groups to reorder them.
-              </p>
-            </InstructionsStep>
+            {lockGroups ? (
+              <InstructionsStep title="Sort each card into a group.">
+                <p className="text-fg2 mt-1.5 ml-5 font-normal">
+                  Drag every card from the left into the group where it best belongs. The groups are
+                  fixed for this study — you can&apos;t add, rename, or remove them.
+                </p>
+              </InstructionsStep>
+            ) : (
+              <InstructionsStep title="Group related items.">
+                <p className="text-fg2 mt-1.5 ml-5 font-normal">
+                  Drag a card into the group area to start a group, or click{' '}
+                  <span className="font-semibold">New group</span>. Rename a group any time, and drag
+                  groups to reorder them.
+                </p>
+              </InstructionsStep>
+            )}
             <InstructionsStep title="Reorder by importance.">
               <p className="text-fg2 mt-1.5 ml-5 font-normal">
                 Drag cards up or down within a group. The number in the corner shows its current
@@ -1132,6 +1196,19 @@ function AllSortedHint() {
     <div className="border-separator1 text-fg4 relative flex min-h-12 items-center justify-center overflow-hidden rounded-md border border-dashed px-3 py-2 text-center text-xs font-medium">
       <DotFill tone="accent" opacity={0.2} />
       <span className="relative">Everything is in a group. You&apos;re ready to submit.</span>
+    </div>
+  );
+}
+
+function LockedNoGroupsHint() {
+  return (
+    <div className="border-separator1 bg-bg1 text-fg3 relative flex min-h-64 flex-col items-center justify-center gap-2 overflow-hidden rounded-lg border border-dashed p-6 text-center">
+      <DotFill tone="accent" opacity={0.12} />
+      <h3 className="text-fg1 relative text-sm font-semibold">No groups available</h3>
+      <p className="text-fg3 relative max-w-xs text-xs">
+        This is a closed card sort, but the author hasn&apos;t defined any groups yet. Please check
+        back later.
+      </p>
     </div>
   );
 }

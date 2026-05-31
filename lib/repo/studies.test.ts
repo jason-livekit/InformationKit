@@ -34,6 +34,8 @@ describe('studies repo', () => {
     expect(s.shareSlug.length).toBeGreaterThan(4);
     expect(s.cards).toEqual([]);
     expect(s.predefinedGroups).toEqual([]);
+    expect(s.sortType).toBe('hybrid');
+    expect(s.randomizeCards).toBe(false);
   });
 
   it('looks up by share slug', async () => {
@@ -69,6 +71,14 @@ describe('studies repo', () => {
     expect(updated!.updatedAt).toBeGreaterThanOrEqual(s.updatedAt);
   });
 
+  it('updates sortType and randomizeCards', async () => {
+    const { project } = await setup();
+    const s = await createStudy({ projectId: project.id, name: 'A', type: 'card-sort' });
+    const updated = await updateStudy(s.id, { sortType: 'closed', randomizeCards: true });
+    expect(updated!.sortType).toBe('closed');
+    expect(updated!.randomizeCards).toBe(true);
+  });
+
   it('duplicates a study: copies setup, resets run-specific fields', async () => {
     const { project } = await setup();
     const source = await updateStudy(
@@ -78,6 +88,8 @@ describe('studies repo', () => {
         status: 'open',
         cards: [{ id: 'c1', label: 'One' }, { id: 'c2', label: 'Two' }],
         predefinedGroups: [{ id: 'g1', label: 'Group', cardIds: ['c1'] }],
+        sortType: 'hybrid',
+        randomizeCards: true,
         standardization: { categories: [{ id: 's1', name: 'Cat', labels: ['cat'] }] },
       },
     );
@@ -96,6 +108,8 @@ describe('studies repo', () => {
     expect(copy!.type).toBe('card-sort');
     expect(copy!.cards).toEqual(source!.cards);
     expect(copy!.predefinedGroups).toEqual(source!.predefinedGroups);
+    expect(copy!.sortType).toBe('hybrid');
+    expect(copy!.randomizeCards).toBe(true);
     // Run-specific state reset.
     expect(copy!.status).toBe('draft');
     expect(copy!.standardization).toBeUndefined();

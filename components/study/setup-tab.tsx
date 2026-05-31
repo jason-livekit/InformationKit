@@ -2,10 +2,32 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
-import type { Study, Card, Group } from '@/lib/repo/schemas';
+import type { Study, Card, Group, SortType } from '@/lib/repo/schemas';
 import { Button } from '@/components/bytes/Button';
+import { Switch } from '@/components/bytes/Switch';
 import { ArrowUndoUpIcon, CirclePlusIcon, TrashCanIcon } from '@/icons/react';
 import { cn } from '@/lib/bytes/utils';
+
+const SORT_TYPE_OPTIONS: { value: SortType; title: string; description: string }[] = [
+  {
+    value: 'open',
+    title: 'Open',
+    description:
+      'No predefined groups. Participants create as many groups as they want during the study.',
+  },
+  {
+    value: 'hybrid',
+    title: 'Hybrid',
+    description:
+      'Predefined groups are shown as a starting point, and participants can still add as many of their own as they want.',
+  },
+  {
+    value: 'closed',
+    title: 'Closed',
+    description:
+      'Predefined groups are shown and fixed. Participants sort into them and cannot add, rename, or remove groups.',
+  },
+];
 
 interface SetupTabProps {
   study: Study;
@@ -22,6 +44,10 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
   const [description, setDescription] = React.useState(study.description);
   const [cards, setCards] = React.useState<Card[]>(study.cards);
   const [groups, setGroups] = React.useState<Group[]>(study.predefinedGroups);
+  const [sortType, setSortType] = React.useState<SortType>(study.sortType ?? 'hybrid');
+  const [randomizeCards, setRandomizeCards] = React.useState<boolean>(
+    study.randomizeCards ?? false,
+  );
   const [saving, setSaving] = React.useState<'idle' | 'saving' | 'saved'>('idle');
   const [resetting, setResetting] = React.useState(false);
   const dirtyRef = React.useRef(false);
@@ -48,7 +74,14 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
       await fetch(`/api/studies/${study.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, cards, predefinedGroups: groups }),
+        body: JSON.stringify({
+          name,
+          description,
+          cards,
+          predefinedGroups: groups,
+          sortType,
+          randomizeCards,
+        }),
       });
       dirtyRef.current = false;
       setSaving('saved');
@@ -56,7 +89,7 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
       setTimeout(() => setSaving('idle'), 1500);
     }, 600);
     return () => clearTimeout(t);
-  }, [name, description, cards, groups, study.id, router]);
+  }, [name, description, cards, groups, sortType, randomizeCards, study.id, router]);
 
   function markDirty() {
     dirtyRef.current = true;
@@ -121,6 +154,65 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
       </Section>
 
       <Section
+        title="Sort type"
+        description="Choose how much structure participants get. This controls whether your predefined groups are shown and whether participants can create their own."
+      >
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {SORT_TYPE_OPTIONS.map((opt) => {
+            const selected = sortType === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => {
+                  setSortType(opt.value);
+                  markDirty();
+                }}
+                className={cn(
+                  'flex flex-col gap-1.5 rounded-md border p-3 text-left transition-colors',
+                  selected
+                    ? 'border-separatorAccent bg-bgAccent1/40'
+                    : 'border-separator1 bg-bg2 hover:border-separator2',
+                )}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="text-fg0 text-sm font-semibold">{opt.title}</span>
+                  <span
+                    className={cn(
+                      'inline-flex h-3.5 w-3.5 shrink-0 items-center justify-center rounded-full border',
+                      selected ? 'border-fgAccent1 bg-fgAccent1' : 'border-separator2',
+                    )}
+                  >
+                    {selected && <span className="bg-bg1 h-1.5 w-1.5 rounded-full" />}
+                  </span>
+                </span>
+                <span className="text-fg3 text-xs">{opt.description}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <label className="border-separator1 bg-bg2 flex items-center justify-between gap-4 rounded-md border p-3">
+          <span className="flex flex-col gap-0.5">
+            <span className="text-fg0 text-sm font-semibold">Randomize card order</span>
+            <span className="text-fg3 text-xs">
+              Shuffle the cards into a different order for each participant to reduce ordering
+              bias.
+            </span>
+          </span>
+          <Switch
+            checked={randomizeCards}
+            onCheckedChange={(v) => {
+              setRandomizeCards(v);
+              markDirty();
+            }}
+            aria-label="Randomize card order"
+          />
+        </label>
+      </Section>
+
+      <Section
         title={`Cards (${cards.length})`}
         description="Each card is a thing participants will sort. Add a short label, optionally a context tag (e.g. “Token”) for disambiguation."
         action={
@@ -165,42 +257,57 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
         )}
       </Section>
 
-      <Section
-        title={`Predefined groups (${groups.length})`}
-        description="Optional. Pre-create groups participants can drop cards into. Leave empty to let them create groups from scratch."
-        action={
-          <Button variant="secondary" size="sm" leftIcon={<CirclePlusIcon />} onClick={addGroup}>
-            Add group
-          </Button>
-        }
-      >
-        {groups.length === 0 ? (
-          <div className="border-separator1 text-fg3 rounded-md border border-dashed px-4 py-6 text-center text-sm">
-            No predefined groups. Participants will create their own.
-          </div>
-        ) : (
-          <ul className="border-separator1 divide-separator1 bg-bg2 divide-y overflow-hidden rounded-md border">
-            {groups.map((g) => (
-              <li key={g.id} className="flex items-stretch gap-0">
-                <input
-                  value={g.label}
-                  onChange={(e) => updateGroup(g.id, { label: e.target.value })}
-                  placeholder="Group name"
-                  className="text-fg0 placeholder:text-fg4 flex-1 bg-transparent px-3 py-2 text-sm focus:outline-none"
-                />
-                <button
-                  type="button"
-                  aria-label="Remove group"
-                  onClick={() => removeGroup(g.id)}
-                  className="text-fg3 hover:bg-bg3 hover:text-fgSerious1 border-l-separator1 inline-flex w-10 items-center justify-center border-l"
-                >
-                  <TrashCanIcon className="h-3.5 w-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </Section>
+      {sortType !== 'open' && (
+        <Section
+          title={`Predefined groups (${groups.length})`}
+          description={
+            sortType === 'closed'
+              ? 'Shown to participants as the fixed set of groups they sort into. They cannot add, rename, or remove groups.'
+              : 'Shown to participants as a starting point. They can still add as many of their own as they want.'
+          }
+          action={
+            <Button variant="secondary" size="sm" leftIcon={<CirclePlusIcon />} onClick={addGroup}>
+              Add group
+            </Button>
+          }
+        >
+          {groups.length === 0 ? (
+            <div
+              className={cn(
+                'rounded-md border border-dashed px-4 py-6 text-center text-sm',
+                sortType === 'closed'
+                  ? 'border-separatorSerious1 text-fgSerious1'
+                  : 'border-separator1 text-fg3',
+              )}
+            >
+              {sortType === 'closed'
+                ? 'A closed sort needs at least one group. Add the groups participants will sort into.'
+                : 'No predefined groups yet. Add some to give participants a starting point.'}
+            </div>
+          ) : (
+            <ul className="border-separator1 divide-separator1 bg-bg2 divide-y overflow-hidden rounded-md border">
+              {groups.map((g) => (
+                <li key={g.id} className="flex items-stretch gap-0">
+                  <input
+                    value={g.label}
+                    onChange={(e) => updateGroup(g.id, { label: e.target.value })}
+                    placeholder="Group name"
+                    className="text-fg0 placeholder:text-fg4 flex-1 bg-transparent px-3 py-2 text-sm focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="Remove group"
+                    onClick={() => removeGroup(g.id)}
+                    className="text-fg3 hover:bg-bg3 hover:text-fgSerious1 border-l-separator1 inline-flex w-10 items-center justify-center border-l"
+                  >
+                    <TrashCanIcon className="h-3.5 w-3.5" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      )}
 
       <Section
         title="Danger zone"

@@ -21,6 +21,8 @@ export default async function SharePage({
       studyDescription={study.description}
       cards={study.cards}
       predefinedGroups={study.predefinedGroups}
+      sortType={study.sortType ?? 'hybrid'}
+      randomizeCards={study.randomizeCards ?? false}
       closed={study.status === 'closed'}
     />
   );
