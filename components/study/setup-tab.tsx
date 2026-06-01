@@ -2,10 +2,28 @@
 
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { CSS } from '@dnd-kit/utilities';
 import type { Study, Card, Group, SortType } from '@/lib/repo/schemas';
 import { Button } from '@/components/bytes/Button';
 import { Switch } from '@/components/bytes/Switch';
-import { ArrowUndoUpIcon, CirclePlusIcon, TrashCanIcon } from '@/icons/react';
+import { ArrowUndoUpIcon, CirclePlusIcon, ReorderIcon, TrashCanIcon } from '@/icons/react';
 import { cn } from '@/lib/bytes/utils';
 
 const SORT_TYPE_OPTIONS: { value: SortType; title: string; description: string }[] = [
@@ -95,6 +113,11 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
     dirtyRef.current = true;
   }
 
+  const cardSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
   function addCard() {
     setCards((cs) => [...cs, { id: uid('c_'), label: '' }]);
     markDirty();
@@ -108,6 +131,17 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
     setGroups((gs) =>
       gs.map((g) => ({ ...g, cardIds: g.cardIds.filter((cid) => cid !== id) })),
     );
+    markDirty();
+  }
+  function reorderCards(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setCards((cs) => {
+      const from = cs.findIndex((c) => c.id === active.id);
+      const to = cs.findIndex((c) => c.id === over.id);
+      if (from === -1 || to === -1) return cs;
+      return arrayMove(cs, from, to);
+    });
     markDirty();
   }
 
@@ -226,34 +260,28 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
             No cards yet. Add some cards for participants to sort.
           </div>
         ) : (
-          <ul className="border-separator1 divide-separator1 bg-bg2 divide-y overflow-hidden rounded-md border">
-            {cards.map((c) => (
-              <li key={c.id} className="flex items-stretch gap-0">
-                <input
-                  value={c.label}
-                  onChange={(e) => updateCard(c.id, { label: e.target.value })}
-                  placeholder="Card label"
-                  className="text-fg0 placeholder:text-fg4 w-48 shrink-0 bg-transparent px-3 py-2 text-sm focus:outline-none"
-                />
-                <input
-                  value={c.description ?? ''}
-                  onChange={(e) =>
-                    updateCard(c.id, { description: e.target.value || undefined })
-                  }
-                  placeholder="Description (optional)"
-                  className="text-fg2 placeholder:text-fg4 border-l-separator1 flex-1 border-l bg-transparent px-3 py-2 text-sm focus:outline-none"
-                />
-                <button
-                  type="button"
-                  aria-label="Remove card"
-                  onClick={() => removeCard(c.id)}
-                  className="text-fg3 hover:bg-bg3 hover:text-fgSerious1 border-l-separator1 inline-flex w-10 items-center justify-center border-l"
-                >
-                  <TrashCanIcon className="h-3.5 w-3.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
+          <DndContext
+            sensors={cardSensors}
+            collisionDetection={closestCenter}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+            onDragEnd={reorderCards}
+          >
+            <SortableContext
+              items={cards.map((c) => c.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="border-separator1 divide-separator1 bg-bg2 divide-y overflow-hidden rounded-md border">
+                {cards.map((c) => (
+                  <SortableCardRow
+                    key={c.id}
+                    card={c}
+                    onUpdate={updateCard}
+                    onRemove={removeCard}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
         )}
       </Section>
 
@@ -343,6 +371,64 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
         {saving === 'saving' ? 'Saving…' : 'Saved'}
       </div>
     </div>
+  );
+}
+
+function SortableCardRow({
+  card,
+  onUpdate,
+  onRemove,
+}: {
+  card: Card;
+  onUpdate: (id: string, patch: Partial<Card>) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, setActivatorNodeRef, transform, transition, isDragging } =
+    useSortable({ id: card.id });
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+  };
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        'bg-bg2 relative flex items-stretch gap-0',
+        isDragging && 'z-10 shadow-[0_8px_24px_rgba(0,0,0,0.18)]',
+      )}
+    >
+      <button
+        type="button"
+        ref={setActivatorNodeRef}
+        aria-label="Drag to reorder card"
+        className="text-fg4 hover:text-fg2 inline-flex w-9 shrink-0 cursor-grab touch-none items-center justify-center focus:outline-none active:cursor-grabbing"
+        {...attributes}
+        {...listeners}
+      >
+        <ReorderIcon className="h-3.5 w-3.5" />
+      </button>
+      <input
+        value={card.label}
+        onChange={(e) => onUpdate(card.id, { label: e.target.value })}
+        placeholder="Card label"
+        className="text-fg0 placeholder:text-fg4 border-l-separator1 w-48 shrink-0 border-l bg-transparent px-3 py-2 text-sm focus:outline-none"
+      />
+      <input
+        value={card.description ?? ''}
+        onChange={(e) => onUpdate(card.id, { description: e.target.value || undefined })}
+        placeholder="Description (optional)"
+        className="text-fg2 placeholder:text-fg4 border-l-separator1 flex-1 border-l bg-transparent px-3 py-2 text-sm focus:outline-none"
+      />
+      <button
+        type="button"
+        aria-label="Remove card"
+        onClick={() => onRemove(card.id)}
+        className="text-fg3 hover:bg-bg3 hover:text-fgSerious1 border-l-separator1 inline-flex w-10 items-center justify-center border-l"
+      >
+        <TrashCanIcon className="h-3.5 w-3.5" />
+      </button>
+    </li>
   );
 }
 
