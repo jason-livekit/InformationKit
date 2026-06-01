@@ -21,9 +21,17 @@ import {
 import { restrictToParentElement, restrictToVerticalAxis } from '@dnd-kit/modifiers';
 import { CSS } from '@dnd-kit/utilities';
 import type { Study, Card, Group, SortType } from '@/lib/repo/schemas';
+import { mergeCardText } from '@/lib/card-sort/merge';
 import { Button } from '@/components/bytes/Button';
+import { Checkbox } from '@/components/bytes/Checkbox';
 import { Switch } from '@/components/bytes/Switch';
-import { ArrowUndoUpIcon, CirclePlusIcon, ReorderIcon, TrashCanIcon } from '@/icons/react';
+import {
+  ArrowUndoUpIcon,
+  CirclePlusIcon,
+  ReorderIcon,
+  SquareBehindSquare1Icon,
+  TrashCanIcon,
+} from '@/icons/react';
 import { cn } from '@/lib/bytes/utils';
 
 const SORT_TYPE_OPTIONS: { value: SortType; title: string; description: string }[] = [
@@ -66,6 +74,7 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
   const [randomizeCards, setRandomizeCards] = React.useState<boolean>(
     study.randomizeCards ?? false,
   );
+  const [selectedCardIds, setSelectedCardIds] = React.useState<Set<string>>(new Set());
   const [saving, setSaving] = React.useState<'idle' | 'saving' | 'saved'>('idle');
   const [resetting, setResetting] = React.useState(false);
   const dirtyRef = React.useRef(false);
@@ -131,6 +140,12 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
     setGroups((gs) =>
       gs.map((g) => ({ ...g, cardIds: g.cardIds.filter((cid) => cid !== id) })),
     );
+    setSelectedCardIds((prev) => {
+      if (!prev.has(id)) return prev;
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
     markDirty();
   }
   function reorderCards(event: DragEndEvent) {
@@ -142,6 +157,63 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
       if (from === -1 || to === -1) return cs;
       return arrayMove(cs, from, to);
     });
+    markDirty();
+  }
+
+  const selectedCount = cards.reduce((n, c) => (selectedCardIds.has(c.id) ? n + 1 : n), 0);
+  const allSelected = cards.length > 0 && selectedCount === cards.length;
+  const someSelected = selectedCount > 0 && !allSelected;
+
+  function toggleSelectCard(id: string) {
+    setSelectedCardIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+  function toggleSelectAll() {
+    setSelectedCardIds(() => (allSelected ? new Set() : new Set(cards.map((c) => c.id))));
+  }
+  function duplicateSelected() {
+    if (selectedCount === 0) return;
+    setCards((cs) => {
+      const out: Card[] = [];
+      for (const c of cs) {
+        out.push(c);
+        if (selectedCardIds.has(c.id)) out.push({ ...c, id: uid('c_') });
+      }
+      return out;
+    });
+    setSelectedCardIds(new Set());
+    markDirty();
+  }
+  function mergeSelected() {
+    const chosen = cards.filter((c) => selectedCardIds.has(c.id));
+    if (chosen.length < 2) return;
+    const { label: mergedLabel, description: mergedDescription } = mergeCardText(chosen);
+    const keepId = chosen[0]!.id;
+    const removeIds = new Set(chosen.slice(1).map((c) => c.id));
+    setCards((cs) =>
+      cs
+        .filter((c) => !removeIds.has(c.id))
+        .map((c) =>
+          c.id === keepId ? { ...c, label: mergedLabel, description: mergedDescription } : c,
+        ),
+    );
+    setGroups((gs) =>
+      gs.map((g) => ({ ...g, cardIds: g.cardIds.filter((cid) => !removeIds.has(cid)) })),
+    );
+    setSelectedCardIds(new Set());
+    markDirty();
+  }
+  function deleteSelected() {
+    if (selectedCount === 0) return;
+    setCards((cs) => cs.filter((c) => !selectedCardIds.has(c.id)));
+    setGroups((gs) =>
+      gs.map((g) => ({ ...g, cardIds: g.cardIds.filter((cid) => !selectedCardIds.has(cid)) })),
+    );
+    setSelectedCardIds(new Set());
     markDirty();
   }
 
@@ -260,28 +332,71 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
             No cards yet. Add some cards for participants to sort.
           </div>
         ) : (
-          <DndContext
-            sensors={cardSensors}
-            collisionDetection={closestCenter}
-            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
-            onDragEnd={reorderCards}
-          >
-            <SortableContext
-              items={cards.map((c) => c.id)}
-              strategy={verticalListSortingStrategy}
+          <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label className="text-fg2 flex cursor-pointer select-none items-center gap-2 text-xs font-medium">
+                <Checkbox
+                  checked={allSelected ? true : someSelected ? 'indeterminate' : false}
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Select all cards"
+                />
+                <span>{selectedCount > 0 ? `${selectedCount} selected` : 'Select all'}</span>
+              </label>
+              {selectedCount > 0 && (
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={<SquareBehindSquare1Icon />}
+                    onClick={duplicateSelected}
+                  >
+                    Duplicate
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={mergeSelected}
+                    disabled={selectedCount < 2}
+                    title={selectedCount < 2 ? 'Select at least two cards to merge' : undefined}
+                  >
+                    Merge
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    leftIcon={<TrashCanIcon />}
+                    onClick={deleteSelected}
+                  >
+                    Delete
+                  </Button>
+                </div>
+              )}
+            </div>
+            <DndContext
+              sensors={cardSensors}
+              collisionDetection={closestCenter}
+              modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+              onDragEnd={reorderCards}
             >
-              <ul className="border-separator1 divide-separator1 bg-bg2 divide-y overflow-hidden rounded-md border">
-                {cards.map((c) => (
-                  <SortableCardRow
-                    key={c.id}
-                    card={c}
-                    onUpdate={updateCard}
-                    onRemove={removeCard}
-                  />
-                ))}
-              </ul>
-            </SortableContext>
-          </DndContext>
+              <SortableContext
+                items={cards.map((c) => c.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <ul className="border-separator1 divide-separator1 bg-bg2 divide-y overflow-hidden rounded-md border">
+                  {cards.map((c) => (
+                    <SortableCardRow
+                      key={c.id}
+                      card={c}
+                      selected={selectedCardIds.has(c.id)}
+                      onToggleSelect={toggleSelectCard}
+                      onUpdate={updateCard}
+                      onRemove={removeCard}
+                    />
+                  ))}
+                </ul>
+              </SortableContext>
+            </DndContext>
+          </div>
         )}
       </Section>
 
@@ -376,10 +491,14 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
 
 function SortableCardRow({
   card,
+  selected,
+  onToggleSelect,
   onUpdate,
   onRemove,
 }: {
   card: Card;
+  selected: boolean;
+  onToggleSelect: (id: string) => void;
   onUpdate: (id: string, patch: Partial<Card>) => void;
   onRemove: (id: string) => void;
 }) {
@@ -394,10 +513,18 @@ function SortableCardRow({
       ref={setNodeRef}
       style={style}
       className={cn(
-        'bg-bg2 relative flex items-stretch gap-0',
+        'relative flex items-stretch gap-0',
+        selected ? 'bg-bgAccent1/30' : 'bg-bg2',
         isDragging && 'z-10 shadow-[0_8px_24px_rgba(0,0,0,0.18)]',
       )}
     >
+      <div className="flex w-9 shrink-0 items-center justify-center">
+        <Checkbox
+          checked={selected}
+          onCheckedChange={() => onToggleSelect(card.id)}
+          aria-label={`Select ${card.label || 'card'}`}
+        />
+      </div>
       <button
         type="button"
         ref={setActivatorNodeRef}
