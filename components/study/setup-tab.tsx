@@ -29,10 +29,14 @@ import {
   ArrowRedoUpIcon,
   ArrowUndoUpIcon,
   CirclePlusIcon,
+  ListBulletsIcon,
+  MarkdownIcon,
   ReorderIcon,
   SquareBehindSquare1Icon,
   TrashCanIcon,
 } from '@/icons/react';
+import { writeToClipboard } from '@/lib/bytes/clipboard';
+import { cardsToMarkdownTable, groupsToMarkdownList } from '@/lib/card-sort/markdown';
 import { cn } from '@/lib/bytes/utils';
 
 const SORT_TYPE_OPTIONS: { value: SortType; title: string; description: string }[] = [
@@ -467,9 +471,18 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
         title={`Cards (${cards.length})`}
         description="Each card is a thing participants will sort. Add a short label, and optionally a longer description to give participants more detail."
         action={
-          <Button variant="secondary" size="sm" leftIcon={<CirclePlusIcon />} onClick={addCard}>
-            Add card
-          </Button>
+          <div className="flex items-center gap-2">
+            {cards.length > 0 && (
+              <CopyButton
+                getText={() => cardsToMarkdownTable(cards)}
+                label="Copy Markdown"
+                icon={<MarkdownIcon />}
+              />
+            )}
+            <Button variant="secondary" size="sm" leftIcon={<CirclePlusIcon />} onClick={addCard}>
+              Add card
+            </Button>
+          </div>
         }
       >
         {cards.length === 0 ? (
@@ -551,9 +564,18 @@ export function SetupTab({ study, submissionsCount }: SetupTabProps) {
               : 'Shown to participants as a starting point. They can still add as many of their own as they want.'
           }
           action={
-            <Button variant="secondary" size="sm" leftIcon={<CirclePlusIcon />} onClick={addGroup}>
-              Add group
-            </Button>
+            <div className="flex items-center gap-2">
+              {groups.length > 0 && (
+                <CopyButton
+                  getText={() => groupsToMarkdownList(groups)}
+                  label="Copy list"
+                  icon={<ListBulletsIcon />}
+                />
+              )}
+              <Button variant="secondary" size="sm" leftIcon={<CirclePlusIcon />} onClick={addGroup}>
+                Add group
+              </Button>
+            </div>
           }
         >
           {groups.length === 0 ? (
@@ -700,6 +722,36 @@ const SortableCardRow = React.memo(function SortableCardRow({
     </li>
   );
 });
+
+function CopyButton({
+  getText,
+  label,
+  icon,
+}: {
+  getText: () => string;
+  label: string;
+  icon: React.ReactElement;
+}) {
+  const [copied, setCopied] = React.useState(false);
+  const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  React.useEffect(() => () => clearTimeout(timer.current ?? undefined), []);
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      leftIcon={icon}
+      onClick={async () => {
+        if (await writeToClipboard(getText())) {
+          setCopied(true);
+          clearTimeout(timer.current ?? undefined);
+          timer.current = setTimeout(() => setCopied(false), 1500);
+        }
+      }}
+    >
+      {copied ? 'Copied!' : label}
+    </Button>
+  );
+}
 
 function Section({
   title,
