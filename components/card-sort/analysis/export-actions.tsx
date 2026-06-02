@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/bytes/DropdownMenu';
 import { toast } from '@/components/bytes/Toaster';
+import { writeToClipboard } from '@/lib/bytes/clipboard';
 import {
   ChevronDownSmallIcon,
   CodeBracketsIcon,
@@ -39,38 +40,6 @@ function downloadText(filename: string, text: string, mime: string) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
-}
-
-async function writeToClipboard(text: string): Promise<boolean> {
-  // Preferred path: the async Clipboard API. Requires a secure context AND a
-  // focused document — the latter fails in embedded/preview browsers, so we
-  // fall through to the legacy path rather than surfacing an error.
-  if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch {
-      // fall through
-    }
-  }
-  // Legacy fallback: execCommand('copy') works without document focus and in
-  // older browsers / webviews.
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.setAttribute('readonly', '');
-    ta.style.position = 'fixed';
-    ta.style.top = '-9999px';
-    ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select();
-    ta.setSelectionRange(0, text.length);
-    const ok = document.execCommand('copy');
-    ta.remove();
-    return ok;
-  } catch {
-    return false;
-  }
 }
 
 async function copyText(text: string, what: string) {

@@ -183,16 +183,6 @@ export function StandardizationGridView({ model }: { model: AnalysisModel }) {
                       >
                         {row.card.label}
                       </span>
-                      {row.card.context && (
-                        <span
-                          className={cn(
-                            'font-mono text-[10px] uppercase tracking-wider transition-colors',
-                            hover?.rowId === row.card.id ? 'text-fgAccent1/70' : 'text-fg4',
-                          )}
-                        >
-                          {row.card.context}
-                        </span>
-                      )}
                     </div>
                   </th>
                   {columns.map((col) => {

@@ -50,7 +50,6 @@ export function CardsView({ model }: { model: AnalysisModel }) {
                 <span className="text-fg0 truncate text-sm font-medium">{r.card.label}</span>
                 <span className="text-fg4 font-mono text-[10px] uppercase tracking-wider">
                   {r.categoryCount} categor{r.categoryCount === 1 ? 'y' : 'ies'}
-                  {r.card.context ? ` · ${r.card.context}` : ''}
                 </span>
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
