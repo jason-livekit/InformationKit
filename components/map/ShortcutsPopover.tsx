@@ -5,7 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/bytes/Popo
 
 const SHORTCUTS: Array<{ keys: string; desc: string }> = [
   { keys: '|', desc: 'Commit a cell and open the next' },
-  { keys: '| |', desc: 'Type a pipe in an empty cell to merge columns' },
+  { keys: '|| ', desc: 'Leading pipes set an empty cell\'s width (merge columns)' },
   { keys: 'Enter', desc: 'New row (on the trailing empty cell) / move down' },
   { keys: '⇧ Enter', desc: 'Move to the row above' },
   { keys: '--- ', desc: 'Turn the row above into a header' },

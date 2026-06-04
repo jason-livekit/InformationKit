@@ -124,8 +124,10 @@ function isEmptyCell(cell: MapCell): boolean {
 /**
  * Handle typing `|`.
  *  - In a cell with content → commit it and spawn a new empty trailing cell.
- *  - In the empty trailing cell → merge: extend the previous cell by one column
- *    (adds artificial width) while keeping the empty active cell at the edge.
+ *  - In an empty cell → a *leading* pipe declares this cell's width up front:
+ *    extend the current (empty) cell by one column and add artificial width.
+ *    Typing `||` before any text gives a 2-column cell, `|||` a 3-column cell,
+ *    and so on. The caret stays in the cell, ready for text.
  */
 export function typePipe(state: GridState): GridState {
   const table = clone(state.table);
@@ -143,20 +145,11 @@ export function typePipe(state: GridState): GridState {
     return { table, caret: { row, cell: cell + 1, offset: 0 } };
   }
 
-  // Empty active cell.
-  if (cell > 0) {
-    const prev = r.cells[cell - 1]!;
-    prev.colSpan += 1;
-    table.columnCount += 1;
-    padRowsToWidth(table);
-    return { table, caret: { row, cell, offset: 0 } };
-  }
-
-  // Empty first cell — spawn a fresh trailing cell to its right.
+  // Empty cell: a leading pipe widens this very cell (declare width up front).
+  cur.colSpan += 1;
   table.columnCount += 1;
-  r.cells.splice(cell + 1, 0, makeCell(''));
   padRowsToWidth(table);
-  return { table, caret: { row, cell: cell + 1, offset: 0 } };
+  return { table, caret: { row, cell, offset: 0 } };
 }
 
 // ---------------------------------------------------------------------------

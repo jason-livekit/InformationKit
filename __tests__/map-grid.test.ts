@@ -74,14 +74,23 @@ describe('grid: typing pipes', () => {
     expect(s.caret).toEqual({ row: 0, cell: 1, offset: 0 });
   });
 
-  it('typing a pipe in the empty trailing cell merges (extends) the previous cell', () => {
+  it('a leading pipe in an empty cell declares that cell\'s width', () => {
     let s = createInitialTable();
     s = setCellText(s, 'Cell 1', 6);
-    s = typePipe(s); // -> ['Cell 1', '']  span [1,1]
-    s = typePipe(s); // merge: extend Cell 1
-    expect(spans(s)[0]![0]).toBe(2); // Cell 1 now spans 2 columns
-    // a trailing empty active cell remains at the edge
-    expect(s.table.rows[0]!.cells.at(-1)!.text).toBe('');
+    s = typePipe(s); // commit Cell 1, open empty trailing cell (idx 1)
+    s = typePipe(s); // leading pipe → widen the NEW (empty) cell
+    expect(spans(s)[0]![0]).toBe(1); // Cell 1 is unchanged
+    expect(spans(s)[0]![1]).toBe(2); // the empty active cell now spans 2 columns
+    expect(s.table.rows[0]!.cells[1]!.text).toBe(''); // still empty, ready for text
+    expect(s.caret).toEqual({ row: 0, cell: 1, offset: 0 });
+  });
+
+  it('leading pipes on the first cell declare its width up front', () => {
+    let s = createInitialTable(); // single empty cell, caret in it
+    s = typePipe(s); // `|` before any text → widen the first cell
+    s = typePipe(s); // again → 3 columns total
+    expect(spans(s)[0]![0]).toBe(3);
+    expect(s.caret).toEqual({ row: 0, cell: 0, offset: 0 });
   });
 
   it('builds | Cell 1 | Cell 2 | with three base columns', () => {

@@ -32,8 +32,9 @@ A **Map** is a Figma-like, zoomable journey-mapping document. Each map has pages
 hosts one markdown **table** on an infinite canvas.
 
 - **Inline markdown** — click the canvas and type `| Cell 1 | Cell 2 |`. Typing `|` commits a
-  cell and opens the next; an extra `|` in an empty cell merges columns (Excel-style). `Enter`
-  on the trailing empty cell opens a new row; `---` turns the row above into a header. Tab /
+  cell and opens the next; *leading* pipes on an empty cell declare its width up front (`||`
+  before any text = a 2-column cell, Excel-style merge). `Enter` on the trailing empty cell
+  opens a new row; `---` turns the row above into a header. Tab /
   arrows navigate; Backspace / Delete at a cell edge shrink merges or delete cells/rows. The
   full rule set lives in the pure, unit-tested engine `components/map/grid.ts`.
 - **OKLCH auto-coloring** (`components/map/colors.ts`) — rows step from dark (top) to light
