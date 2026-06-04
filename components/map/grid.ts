@@ -525,3 +525,33 @@ export function moveRow(table: MapTable, from: number, to: number): MapTable {
   next.rows.splice(to, 0, r!);
   return next;
 }
+
+/** Reorder a base column from `from` to `to` (operates on unmerged grids). */
+export function moveColumn(table: MapTable, from: number, to: number): MapTable {
+  const next = clone(table);
+  if (from < 0 || from >= next.columnCount || to < 0 || to >= next.columnCount) return next;
+  const [w] = next.columnWidths.splice(from, 1);
+  next.columnWidths.splice(to, 0, w ?? DEFAULT_COL_WIDTH);
+  for (const row of next.rows) {
+    // Only safe for fully-unmerged rows; merged cells are left in place.
+    if (row.cells.length !== next.columnCount) continue;
+    const [c] = row.cells.splice(from, 1);
+    row.cells.splice(to, 0, c!);
+  }
+  return next;
+}
+
+export function setColumnWidth(table: MapTable, col: number, width: number): MapTable {
+  const next = clone(table);
+  if (col < 0 || col >= next.columnWidths.length) return next;
+  next.columnWidths[col] = Math.max(40, width);
+  return next;
+}
+
+export function setRowHeight(table: MapTable, row: number, height: number): MapTable {
+  const next = clone(table);
+  const r = next.rows[row];
+  if (!r) return next;
+  r.height = Math.max(24, height);
+  return next;
+}

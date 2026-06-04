@@ -123,7 +123,12 @@ export const MapCellSchema = z.object({
   align: MapTextAlignSchema.default('left'),
   /** Manual OKLCH hue override in degrees [0,360). null = automatic ROYGBIV hue. */
   hue: z.number().nullable().default(null),
+  /** Render this cell's text with the monospace (Commit Mono) family. */
+  mono: z.boolean().optional(),
 });
+
+/** Design-system text sizes available in the style panel. */
+export const MapTextSizeSchema = z.enum(['small', 'medium', 'large', 'xlarge', 'huge']);
 
 export const MapRowSchema = z.object({
   id: z.string().min(1),
@@ -138,6 +143,8 @@ export const MapTableSchema = z.object({
   columnWidths: z.array(z.number().min(24)).default([]),
   /** How many leading rows are header rows (semibold + bg2). */
   headerRows: z.number().int().min(0).default(0),
+  /** Table-wide text size (design-system scale). */
+  textSize: MapTextSizeSchema.optional(),
   rows: z.array(MapRowSchema).default([]),
 });
 
@@ -192,6 +199,7 @@ export type SortType = z.infer<typeof SortTypeSchema>;
 export type Submission = z.infer<typeof SubmissionSchema>;
 export type SubmissionInput = z.infer<typeof SubmissionInputSchema>;
 export type MapTextAlign = z.infer<typeof MapTextAlignSchema>;
+export type MapTextSize = z.infer<typeof MapTextSizeSchema>;
 export type MapCell = z.infer<typeof MapCellSchema>;
 export type MapRow = z.infer<typeof MapRowSchema>;
 export type MapTable = z.infer<typeof MapTableSchema>;
