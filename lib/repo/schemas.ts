@@ -104,6 +104,61 @@ export const StudySchema = z.object({
   updatedAt: z.number(),
 });
 
+/**
+ * Journey Maps — a Figma-like, zoomable markdown-table document that lives under a
+ * Project as a sibling to Studies. A Map has pages; each page hosts one markdown
+ * table. Coloring is computed (OKLCH) from row/column position at render time; only
+ * a per-cell `hue` override persists. See `components/map/` for the engines.
+ */
+export const MapTextAlignSchema = z.enum(['left', 'center', 'right']);
+
+export const MapCellSchema = z.object({
+  id: z.string().min(1),
+  /** How many base columns this cell spans (>=1). Spanning merges columns to the right. */
+  colSpan: z.number().int().min(1).default(1),
+  text: z.string().default(''),
+  bold: z.boolean().default(false),
+  italic: z.boolean().default(false),
+  strike: z.boolean().default(false),
+  align: MapTextAlignSchema.default('left'),
+  /** Manual OKLCH hue override in degrees [0,360). null = automatic ROYGBIV hue. */
+  hue: z.number().nullable().default(null),
+});
+
+export const MapRowSchema = z.object({
+  id: z.string().min(1),
+  /** Row height in px (constant on zoom; only widths scale). */
+  height: z.number().min(16).default(48),
+  cells: z.array(MapCellSchema),
+});
+
+export const MapTableSchema = z.object({
+  /** Number of base (unmerged) columns. Sum of each row's cell colSpans equals this. */
+  columnCount: z.number().int().min(0).default(0),
+  columnWidths: z.array(z.number().min(24)).default([]),
+  /** How many leading rows are header rows (semibold + bg2). */
+  headerRows: z.number().int().min(0).default(0),
+  rows: z.array(MapRowSchema).default([]),
+});
+
+export const MapPageSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  table: MapTableSchema,
+});
+
+export const MapDocSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  name: z.string().min(1),
+  shareSlug: z.string().min(1),
+  /** When true, the Map is viewable anonymously at /m/[shareSlug]. */
+  published: z.boolean().default(false),
+  pages: z.array(MapPageSchema),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
 export const SubmissionSchema = z.object({
   id: z.string().min(1),
   studyId: z.string().min(1),
@@ -136,3 +191,9 @@ export type StudyType = z.infer<typeof StudyTypeSchema>;
 export type SortType = z.infer<typeof SortTypeSchema>;
 export type Submission = z.infer<typeof SubmissionSchema>;
 export type SubmissionInput = z.infer<typeof SubmissionInputSchema>;
+export type MapTextAlign = z.infer<typeof MapTextAlignSchema>;
+export type MapCell = z.infer<typeof MapCellSchema>;
+export type MapRow = z.infer<typeof MapRowSchema>;
+export type MapTable = z.infer<typeof MapTableSchema>;
+export type MapPage = z.infer<typeof MapPageSchema>;
+export type MapDoc = z.infer<typeof MapDocSchema>;
