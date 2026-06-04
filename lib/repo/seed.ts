@@ -1,7 +1,8 @@
 import { getKV } from './redis';
 import { upsertUser } from './users';
-import { StudySchema, ProjectSchema, SubmissionSchema } from './schemas';
+import { StudySchema, ProjectSchema, SubmissionSchema, MapDocSchema } from './schemas';
 import { CARDS as DEMO_CARDS } from '@/lib/card-sort/items';
+import { DEMO_MAP } from './seed-map';
 
 /**
  * Who owns the built-in demo study. Sign in as this email to manage the demo:
@@ -13,8 +14,10 @@ export const DEMO_USER_EMAIL = process.env.DEMO_OWNER_EMAIL || 'demo@information
 export const DEMO_STUDY_ID = 'st_demo_sessions_ui';
 export const DEMO_PROJECT_ID = 'p_demo';
 export const DEMO_SHARE_SLUG = 'demo-sessions-ui';
+export const DEMO_MAP_ID = 'mapdoc_demo_journey';
+export const DEMO_MAP_SHARE_SLUG = 'demo-journey-map';
 
-const SEED_FLAG_KEY = 'migration:done:v2';
+const SEED_FLAG_KEY = 'migration:done:v3';
 const LEGACY_SUBMISSIONS_KEY = 'card-sort:submissions';
 
 let seedingPromise: Promise<void> | null = null;
@@ -79,6 +82,22 @@ async function doSeed(): Promise<void> {
     await kv.jsonSet(`study:${DEMO_STUDY_ID}`, study);
     await kv.listPush(`project:${DEMO_PROJECT_ID}:studies`, DEMO_STUDY_ID);
     await kv.setString(`study:byShareSlug:${DEMO_SHARE_SLUG}`, DEMO_STUDY_ID);
+  }
+
+  if (!(await kv.jsonGet(`map:${DEMO_MAP_ID}`))) {
+    const map = MapDocSchema.parse({
+      id: DEMO_MAP_ID,
+      projectId: DEMO_PROJECT_ID,
+      name: 'Customer onboarding journey',
+      shareSlug: DEMO_MAP_SHARE_SLUG,
+      published: true,
+      pages: DEMO_MAP(now),
+      createdAt: now,
+      updatedAt: now,
+    });
+    await kv.jsonSet(`map:${DEMO_MAP_ID}`, map);
+    await kv.listPush(`project:${DEMO_PROJECT_ID}:maps`, DEMO_MAP_ID);
+    await kv.setString(`map:byShareSlug:${DEMO_MAP_SHARE_SLUG}`, DEMO_MAP_ID);
   }
 
   const legacy = await kv.listRange(LEGACY_SUBMISSIONS_KEY, 0, -1);
