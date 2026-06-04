@@ -7,6 +7,7 @@ import { Button } from '@/components/bytes/Button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/bytes/Popover';
 import { ArrowLeftIcon, ArrowShareRightIcon, EyeOpenIcon } from '@/icons/react';
 import { MapStoreProvider, useMap, useMapApi } from './useMapStore';
+import { addRow } from './grid';
 import { MapCanvas } from './MapCanvas';
 import { PagesSidebar } from './PagesSidebar';
 import { StylePanel } from './StylePanel';
@@ -45,10 +46,13 @@ function EditorInner({ projectId }: { projectId: string }) {
       } else if (key === 'i') {
         e.preventDefault();
         api.getState().toggleMark('italic');
-      } else if (key === 'enter') {
+      } else if (key === 'enter' && e.shiftKey) {
         e.preventDefault();
         const t = api.getState().activeTable();
-        api.getState().replaceTable({ ...t }); // ensure history snapshot
+        if (t.rows.length > 0) {
+          const next = addRow({ table: t, caret: { row: 0, cell: 0, offset: 0 } });
+          api.getState().applyGrid(next);
+        }
       }
     }
     window.addEventListener('keydown', onKey);

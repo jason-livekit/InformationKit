@@ -14,7 +14,7 @@ const SHORTCUTS: Array<{ keys: string; desc: string }> = [
   { keys: 'Backspace', desc: 'At cell start: shrink merge / delete cell / row' },
   { keys: '⌘/Ctrl Backspace', desc: 'At cell end: mirror of backspace' },
   { keys: '⌘/Ctrl B / I', desc: 'Bold / italic the selection' },
-  { keys: '⌘/Ctrl ⇧ Enter', desc: 'Add a row below' },
+  { keys: '⌘/Ctrl ⇧ Enter', desc: 'Add a row to the table' },
   { keys: '⌘/Ctrl Z / ⇧ Z', desc: 'Undo / redo' },
   { keys: 'Esc', desc: 'Stop editing / deselect' },
   { keys: '? or ⌘/Ctrl ?', desc: 'Open this shortcuts panel' },
