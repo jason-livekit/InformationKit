@@ -52,6 +52,7 @@
     "@tanstack/react-form": "^1.12.1",
     "@tanstack/react-table": "^8.21.3",
     "@upstash/redis": "^1.37.0",
+    "@vercel/analytics": "^2.0.1",
     "@visx/pattern": "3.12.0",
     "chart.js": "4.5.1",
     "chartjs-adapter-dayjs-4": "1.0.4",
