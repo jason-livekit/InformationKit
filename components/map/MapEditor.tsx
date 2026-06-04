@@ -7,7 +7,7 @@ import { Button } from '@/components/bytes/Button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/bytes/Popover';
 import { ArrowLeftIcon, ArrowShareRightIcon, EyeOpenIcon } from '@/icons/react';
 import { MapStoreProvider, useMap, useMapApi } from './useMapStore';
-import { addRow } from './grid';
+import { addRow, deleteRow, deleteColumn } from './grid';
 import { MapCanvas } from './MapCanvas';
 import { PagesSidebar } from './PagesSidebar';
 import { StylePanel } from './StylePanel';
@@ -31,6 +31,27 @@ function EditorInner({ projectId }: { projectId: string }) {
   // Global shortcuts (Cmd/Ctrl modified so they don't clash with cell typing).
   React.useEffect(() => {
     function onKey(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const typing = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+
+      // Delete the selected row/column with Delete/Backspace (when not typing).
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && !api.getState().editing) {
+        const sel = api.getState().selection;
+        const t = api.getState().activeTable();
+        if (sel.kind === 'row') {
+          e.preventDefault();
+          api.getState().applyGrid(deleteRow({ table: t, caret: { row: sel.row, cell: 0, offset: 0 } }, sel.row));
+          api.getState().select({ kind: 'none' });
+          return;
+        }
+        if (sel.kind === 'column') {
+          e.preventDefault();
+          api.getState().applyGrid(deleteColumn({ table: t, caret: { row: 0, cell: 0, offset: 0 } }, sel.col));
+          api.getState().select({ kind: 'none' });
+          return;
+        }
+      }
+
       const mod = e.metaKey || e.ctrlKey;
       if (!mod) return;
       const key = e.key.toLowerCase();

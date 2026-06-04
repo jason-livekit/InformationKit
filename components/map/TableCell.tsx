@@ -172,18 +172,13 @@ export function TableCell({ cell, rowIndex, cellIndex, color, textSize, readOnly
     api.getState().applyGrid(setCellText(state(), value, newOffset));
   }
 
-  function handleMouseDown(e: React.MouseEvent) {
+  function handleMouseDown() {
     if (readOnly) return;
-    if (e.detail >= 2) {
-      // double-click → edit
-      api.getState().setEditing(true);
-      api.getState().setCaret({ row: rowIndex, cell: cellIndex, offset: cell.text.length });
-      api.getState().select({ kind: 'cell', row: rowIndex, cell: cellIndex });
-    } else {
-      api.getState().setEditing(false);
-      api.getState().select({ kind: 'cell', row: rowIndex, cell: cellIndex });
-      api.getState().setCaret({ row: rowIndex, cell: cellIndex, offset: cell.text.length });
-    }
+    // Single click enters edit mode directly (and selects the cell so the
+    // style panel targets it).
+    api.getState().select({ kind: 'cell', row: rowIndex, cell: cellIndex });
+    api.getState().setCaret({ row: rowIndex, cell: cellIndex, offset: cell.text.length });
+    api.getState().setEditing(true);
   }
 
   const sizeClass = SIZE_CLASS[textSize];

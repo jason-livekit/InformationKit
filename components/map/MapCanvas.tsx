@@ -18,6 +18,7 @@ interface MapCanvasProps {
 export function MapCanvas({ table, readOnly }: MapCanvasProps) {
   const api = useMapApi();
   const focusTarget = useMap((s) => s.focusTarget);
+  const caret = useMap((s) => s.caret);
   const viewportRef = React.useRef<HTMLDivElement>(null);
   const [vp, setVp] = React.useState({ w: 1000, h: 700 });
   const [zoom, setZoom] = React.useState(1);
@@ -42,6 +43,14 @@ export function MapCanvas({ table, readOnly }: MapCanvasProps) {
   const colW = table.columnWidths.map((w) => w * zoom);
   const tableW = sum(colW);
   const tableH = sumRowHeights(table, revealCount);
+
+  // Mirror live values into refs for the stable native gesture listeners.
+  const zoomRef = React.useRef(zoom);
+  const zMinRef = React.useRef(zMin);
+  const zMaxRef = React.useRef(zMax);
+  zoomRef.current = zoom;
+  zMinRef.current = zMin;
+  zMaxRef.current = zMax;
 
   // Measure viewport.
   React.useEffect(() => {
@@ -107,24 +116,60 @@ export function MapCanvas({ table, readOnly }: MapCanvasProps) {
     }, 140);
   }
 
-  function handleWheel(e: React.WheelEvent) {
+  // Keep the latest wheel logic in a ref so the (stable) native listener never
+  // sees a stale closure for zMin/zMax/etc.
+  const onWheelRef = React.useRef<(e: WheelEvent) => void>(() => {});
+  onWheelRef.current = (e: WheelEvent) => {
+    // Always prevent default so the *page* never scrolls or pinch-zooms while
+    // the pointer is over the canvas — the canvas owns the gesture.
     e.preventDefault();
     setSettling(false);
     if (e.ctrlKey || e.metaKey) {
-      // pinch / ctrl-wheel → zoom (width multiplier)
       const factor = Math.exp(-e.deltaY * 0.0015);
       setZoom((z) => clamp(z * factor, zMin * 0.85, zMax * 1.15));
     } else {
       setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
     }
     scheduleSettle();
-  }
+  };
+
+  // Native, non-passive wheel + Safari gesture listeners. React's synthetic
+  // onWheel is passive, so its preventDefault() can't stop browser page zoom.
+  React.useEffect(() => {
+    const el = viewportRef.current;
+    if (!el) return;
+    const wheel = (e: WheelEvent) => onWheelRef.current(e);
+    let gestureStartZoom = 1;
+    const gestureStart = (e: Event) => {
+      e.preventDefault();
+      gestureStartZoom = zoomRef.current;
+    };
+    const gestureChange = (e: Event) => {
+      e.preventDefault();
+      const scale = (e as unknown as { scale: number }).scale || 1;
+      setSettling(false);
+      setZoom(clamp(gestureStartZoom * scale, zMinRef.current * 0.85, zMaxRef.current * 1.15));
+      scheduleSettle();
+    };
+    el.addEventListener('wheel', wheel, { passive: false });
+    el.addEventListener('gesturestart', gestureStart as EventListener, { passive: false });
+    el.addEventListener('gesturechange', gestureChange as EventListener, { passive: false });
+    return () => {
+      el.removeEventListener('wheel', wheel);
+      el.removeEventListener('gesturestart', gestureStart as EventListener);
+      el.removeEventListener('gesturechange', gestureChange as EventListener);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Background drag-to-pan.
   function handlePointerDown(e: React.PointerEvent) {
     const target = e.target as HTMLElement;
     if (target.closest('[data-cell]') || target.closest('button')) return;
-    if (!readOnly) api.getState().select({ kind: 'none' });
+    if (!readOnly) {
+      api.getState().setEditing(false);
+      api.getState().select({ kind: 'none' });
+    }
     const startX = e.clientX;
     const startY = e.clientY;
     const startPan = { ...pan };
@@ -174,14 +219,27 @@ export function MapCanvas({ table, readOnly }: MapCanvasProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [focusTarget?.nonce]);
 
+  // Auto-reveal: if the caret moves to (or a row is added at) a row hidden by
+  // the level-of-detail zoom, zoom in just enough to show it. This keeps newly
+  // added / edited rows visible instead of being hidden below the fold.
+  React.useEffect(() => {
+    if (!caret) return;
+    const needed = caret.row + 1;
+    if (needed > revealCount) {
+      setSettling(true);
+      setZoom(zForReveal(needed));
+      requestAnimationFrame(() => setPan((p) => clampPan(p, tableW, tableH)));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [caret?.row, table.rows.length]);
+
   const isEmpty = table.rows.length === 0;
 
   return (
     <div
       ref={viewportRef}
-      onWheel={handleWheel}
       onPointerDown={handlePointerDown}
-      className="map-canvas relative h-full w-full touch-none overflow-hidden"
+      className="map-canvas relative h-full w-full touch-none overflow-hidden overscroll-none"
       style={{
         background:
           'radial-gradient(var(--separator1) 1px, transparent 1px)',

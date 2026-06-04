@@ -4,7 +4,9 @@ import * as React from 'react';
 import { cn } from '@/lib/bytes/utils';
 import type { MapTextSize } from '@/lib/repo/schemas';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/bytes/Popover';
+import { TrashCanIcon } from '@/icons/react';
 import { HUE_ANGLES, oklch } from './colors';
+import { deleteColumn, deleteRow } from './grid';
 import { useMap, useMapApi } from './useMapStore';
 
 const SIZES: Array<{ key: MapTextSize; label: string }> = [
@@ -132,6 +134,32 @@ export function StylePanel() {
       <ToggleBtn label="⟸" title="Align left" onClick={() => api.getState().setAlign('left')} />
       <ToggleBtn label="≡" title="Align center" onClick={() => api.getState().setAlign('center')} />
       <ToggleBtn label="⟹" title="Align right" onClick={() => api.getState().setAlign('right')} />
+
+      {(selection.kind === 'row' || selection.kind === 'column') && (
+        <>
+          <Divider />
+          <button
+            type="button"
+            title={`Delete ${selection.kind}`}
+            onClick={() => {
+              const t = api.getState().activeTable();
+              if (selection.kind === 'row') {
+                api.getState().applyGrid(
+                  deleteRow({ table: t, caret: { row: selection.row, cell: 0, offset: 0 } }, selection.row),
+                );
+              } else if (selection.kind === 'column') {
+                api.getState().applyGrid(
+                  deleteColumn({ table: t, caret: { row: 0, cell: 0, offset: 0 } }, selection.col),
+                );
+              }
+              api.getState().select({ kind: 'none' });
+            }}
+            className="text-fgSerious1 hover:bg-bgSerious2 flex h-7 min-w-7 items-center justify-center rounded-md px-1.5"
+          >
+            <TrashCanIcon className="h-4 w-4" />
+          </button>
+        </>
+      )}
     </div>
   );
 }

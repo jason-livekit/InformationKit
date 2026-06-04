@@ -60,6 +60,7 @@ export function MapTableView({ table, zoom, revealCount, readOnly }: MapTableVie
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       if (!moved) {
+        api.getState().setEditing(false);
         api.getState().select(axis === 'row' ? { kind: 'row', row: index } : { kind: 'column', col: index });
         return;
       }
@@ -192,7 +193,7 @@ export function MapTableView({ table, zoom, revealCount, readOnly }: MapTableVie
           {/* Add column (right) */}
           <button
             type="button"
-            onClick={() => api.getState().replaceTable(addColumn({ table, caret: { row: 0, cell: 0, offset: 0 } }).table)}
+            onClick={() => api.getState().applyGrid(addColumn({ table, caret: { row: 0, cell: 0, offset: 0 } }))}
             title="Add column"
             className="bg-fgAccent1 text-bg1 hover:bg-fgAccent2 absolute flex items-center justify-center rounded-md text-lg leading-none shadow-sm"
             style={{ left: tableW + 8, top: tableH / 2 - ADD_BTN / 2, width: ADD_BTN, height: Math.min(tableH, 120) }}
@@ -203,7 +204,7 @@ export function MapTableView({ table, zoom, revealCount, readOnly }: MapTableVie
           {/* Add row (bottom) */}
           <button
             type="button"
-            onClick={() => api.getState().replaceTable(addRow({ table, caret: { row: 0, cell: 0, offset: 0 } }).table)}
+            onClick={() => api.getState().applyGrid(addRow({ table, caret: { row: 0, cell: 0, offset: 0 } }))}
             title="Add row"
             className="bg-fgAccent1/20 text-fgAccent1 hover:bg-fgAccent1/30 absolute flex items-center justify-center rounded-md text-lg leading-none"
             style={{ left: 0, top: tableH + 8, width: tableW, height: ADD_BTN }}
