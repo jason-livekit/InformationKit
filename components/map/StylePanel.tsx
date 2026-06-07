@@ -7,7 +7,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/bytes/Popo
 import { TrashCanIcon } from '@/icons/react';
 import { HUE_ANGLES, oklch } from './colors';
 import { deleteColumn, deleteRow } from './grid';
-import { useMap, useMapApi } from './useMapStore';
+import { useMap, useMapApi, type Selection } from './useMapStore';
 
 const SIZES: Array<{ key: MapTextSize; label: string }> = [
   { key: 'small', label: 'Small' },
@@ -17,13 +17,69 @@ const SIZES: Array<{ key: MapTextSize; label: string }> = [
   { key: 'huge', label: 'Huge' },
 ];
 
+interface PanelPos {
+  left: number;
+  top: number;
+  above: boolean;
+}
+
+/** Locate the DOM element the panel should hover near for the current selection. */
+function findAnchor(selection: Selection): Element | null {
+  if (selection.kind === 'cell') {
+    return document.querySelector(`[data-cellpos="${selection.row}:${selection.cell}"]`);
+  }
+  if (selection.kind === 'row') {
+    return (
+      document.querySelector(`[data-rowpos="${selection.row}"]`) ||
+      document.querySelector(`[data-cellpos="${selection.row}:0"]`)
+    );
+  }
+  if (selection.kind === 'column') {
+    return document.querySelector(`[data-colpos="${selection.col}"]`);
+  }
+  return null;
+}
+
 export function StylePanel() {
   const api = useMapApi();
   const selection = useMap((s) => s.selection);
   const editing = useMap((s) => s.editing);
+  const caret = useMap((s) => s.caret);
   const table = useMap((s) => s.activePage().table);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const [pos, setPos] = React.useState<PanelPos | null>(null);
 
   const visible = selection.kind !== 'none' || editing;
+
+  // Glue the panel to the selected element (above, or below if no room),
+  // following the canvas as it pans/zooms via a per-frame measurement.
+  React.useEffect(() => {
+    if (!visible) {
+      setPos(null);
+      return;
+    }
+    let raf = 0;
+    const tick = () => {
+      const anchor = findAnchor(selection);
+      const panelH = panelRef.current?.offsetHeight ?? 48;
+      if (anchor) {
+        const r = anchor.getBoundingClientRect();
+        const gap = 10;
+        const above = r.top > panelH + gap + 8;
+        const top = above ? r.top - gap : r.bottom + gap;
+        const left = Math.min(Math.max(r.left + r.width / 2, 160), window.innerWidth - 160);
+        setPos({ left, top, above });
+      } else {
+        // Table / fallback: pinned to the top-center of the viewport.
+        setPos(null);
+      }
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, selection.kind, (selection as { row?: number }).row, (selection as { col?: number }).col, (selection as { cell?: number }).cell, caret?.row, caret?.cell]);
+
   if (!visible) return null;
 
   const scopeLabel =
@@ -37,8 +93,20 @@ export function StylePanel() {
 
   const currentSize: MapTextSize = table.textSize ?? 'small';
 
+  const floatingStyle: React.CSSProperties = pos
+    ? {
+        position: 'fixed',
+        left: pos.left,
+        top: pos.top,
+        transform: `translate(-50%, ${pos.above ? '-100%' : '0'})`,
+      }
+    : { position: 'absolute', left: '50%', top: 16, transform: 'translateX(-50%)' };
+
   return (
-    <div className="border-separator1 bg-bg0/95 dark:bg-bg3 absolute left-1/2 top-4 z-30 flex -translate-x-1/2 items-center gap-1 rounded-xl border p-1.5 shadow-lg backdrop-blur">
+    <div
+      ref={panelRef}
+      style={floatingStyle}
+      className="border-separator1 bg-bg0/95 dark:bg-bg3 z-30 flex items-center gap-1 rounded-xl border p-1.5 shadow-lg backdrop-blur">
       <span className="text-fg4 px-2 font-mono text-[10px] uppercase tracking-wider">{scopeLabel}</span>
       <Divider />
 

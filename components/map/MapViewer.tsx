@@ -41,7 +41,7 @@ function ViewerInner() {
         </div>
       )}
       <div className="relative min-h-0 flex-1">
-        <MapCanvas table={table} readOnly />
+        <MapCanvas table={table} pageId={activePageId} readOnly />
       </div>
     </div>
   );

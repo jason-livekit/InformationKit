@@ -42,12 +42,15 @@ export const HUE_ANGLES = [
   358, // pink
 ];
 
-// Surface lightness range (top=dark .. bottom=light) and fixed pastel chroma.
-const L_DARK = 0.74;
-const L_LIGHT = 0.93;
-const C_FILL = 0.055;
+// Surface lightness: the top row is darkest; each row steps lighter by a fixed,
+// clearly-visible amount until it caps at the lightest shade. This gives a
+// limited set of distinct shades — after the cap the lowest rows all stay light.
+const L_TOP = 0.6; // darkest (top row)
+const L_STEP = 0.07; // lightness added per row going down
+const L_MAX = 0.95; // lightest cap
+const C_FILL = 0.06;
 const BORDER_DL = 0.1;
-const C_BORDER = 0.075;
+const C_BORDER = 0.08;
 const L_TEXT = 0.4;
 const C_TEXT = 0.11;
 
@@ -63,11 +66,14 @@ export function oklch(l: number, c: number, h: number): string {
   return `oklch(${L.toFixed(4)} ${c.toFixed(4)} ${h.toFixed(2)})`;
 }
 
-/** Lightness for a given row index (top darkest → bottom lightest). */
-export function rowLightness(rowIndex: number, rowCount: number): number {
-  if (rowCount <= 1) return L_LIGHT;
-  const t = rowIndex / (rowCount - 1);
-  return L_DARK + (L_LIGHT - L_DARK) * t;
+/**
+ * Lightness for a given row index. Top (row 0) is darkest; each subsequent row
+ * is a fixed step lighter, capped at the lightest shade — so deeper rows beyond
+ * the cap all stay equally light. `rowCount` is accepted for API stability but
+ * no longer needed (the scale is anchored at the top, not stretched to fit).
+ */
+export function rowLightness(rowIndex: number, _rowCount?: number): number {
+  return Math.min(L_MAX, L_TOP + rowIndex * L_STEP);
 }
 
 // ---------------------------------------------------------------------------

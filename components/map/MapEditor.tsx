@@ -25,6 +25,7 @@ function EditorInner({ projectId }: { projectId: string }) {
   const api = useMapApi();
   const name = useMap((s) => s.doc.name);
   const table = useMap((s) => s.activePage().table);
+  const activePageId = useMap((s) => s.activePageId);
   const saveState = useMap((s) => s.saveState);
   const mapId = useMap((s) => s.doc.id);
 
@@ -111,7 +112,7 @@ function EditorInner({ projectId }: { projectId: string }) {
         <PagesSidebar />
         <div className="relative min-w-0 flex-1">
           <StylePanel />
-          <MapCanvas table={table} />
+          <MapCanvas table={table} pageId={activePageId} />
         </div>
       </div>
 

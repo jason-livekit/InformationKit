@@ -7,7 +7,7 @@ const SHORTCUTS: Array<{ keys: string; desc: string }> = [
   { keys: '|', desc: 'Commit a cell and open the next' },
   { keys: '|| ', desc: 'Leading pipes set an empty cell\'s width (merge columns)' },
   { keys: 'Enter', desc: 'New row (on the trailing empty cell) / move down' },
-  { keys: '⇧ Enter', desc: 'Move to the row above' },
+  { keys: '⇧ Enter', desc: 'Insert a line break inside the cell' },
   { keys: '--- ', desc: 'Turn the row above into a header' },
   { keys: 'Tab / ⇧ Tab', desc: 'Move between cells (never creates structure)' },
   { keys: '← → ↑ ↓', desc: 'Navigate cells' },

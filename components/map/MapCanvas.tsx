@@ -12,10 +12,12 @@ const HANDLE_PAD = 40; // space around the table for chrome handles
 
 interface MapCanvasProps {
   table: MapTable;
+  /** Re-center the view only when this changes (i.e. on page switch). */
+  pageId?: string;
   readOnly?: boolean;
 }
 
-export function MapCanvas({ table, readOnly }: MapCanvasProps) {
+export function MapCanvas({ table, pageId, readOnly }: MapCanvasProps) {
   const api = useMapApi();
   const focusTarget = useMap((s) => s.focusTarget);
   const caret = useMap((s) => s.caret);
@@ -62,24 +64,26 @@ export function MapCanvas({ table, readOnly }: MapCanvasProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Center on first layout / when switching pages.
-  const pageKey = `${table.rows.length}:${baseWidth}`;
+  // Center the view only on first layout and when the page actually changes —
+  // NOT on every structural edit (adding a row/column must not reset the view).
+  const pageKey = pageId ?? 'page';
   React.useEffect(() => {
-    if (initializedFor.current === pageKey && initializedFor.current !== '') return;
-    initializedFor.current = pageKey || 'x';
+    initializedFor.current = pageKey;
     setZoom(zMin);
-    // center after a tick when dims are known
     requestAnimationFrame(() => centerTable(zMin));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pageKey]);
 
   function centerTable(z = zoom) {
+    const el = viewportRef.current;
+    const vw = el?.clientWidth ?? vp.w;
+    const vh = el?.clientHeight ?? vp.h;
     const w = sum(table.columnWidths.map((x) => x * z));
     const h = sumRowHeights(table, rowCountForZoom(z));
     setSettling(true);
     setPan({
-      x: vp.w / 2 - w / 2 - HANDLE_PAD,
-      y: vp.h / 2 - h / 2 - HANDLE_PAD,
+      x: vw / 2 - w / 2 - HANDLE_PAD,
+      y: vh / 2 - h / 2 - HANDLE_PAD,
     });
   }
 
@@ -125,7 +129,7 @@ export function MapCanvas({ table, readOnly }: MapCanvasProps) {
     e.preventDefault();
     setSettling(false);
     if (e.ctrlKey || e.metaKey) {
-      const factor = Math.exp(-e.deltaY * 0.0015);
+      const factor = Math.exp(-e.deltaY * 0.012);
       setZoom((z) => clamp(z * factor, zMin * 0.85, zMax * 1.15));
     } else {
       setPan((p) => ({ x: p.x - e.deltaX, y: p.y - e.deltaY }));
@@ -250,7 +254,12 @@ export function MapCanvas({ table, readOnly }: MapCanvasProps) {
         <button
           type="button"
           disabled={readOnly}
-          onClick={() => !readOnly && api.getState().applyGrid(startTyping())}
+          onClick={() => {
+            if (readOnly) return;
+            api.getState().applyGrid(startTyping());
+            api.getState().setEditing(true);
+            api.getState().select({ kind: 'cell', row: 0, cell: 0 });
+          }}
           className="text-fg3 hover:text-fg1 absolute inset-0 m-auto flex h-fit w-fit flex-col items-center gap-2 text-sm disabled:opacity-60"
         >
           <span className="border-separator2 bg-bg1 rounded-lg border border-dashed px-6 py-5">

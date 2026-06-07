@@ -15,7 +15,6 @@ import {
   setCellText,
   typeEnter,
   typePipe,
-  typeShiftEnter,
 } from './grid';
 import { useMap, useMapApi } from './useMapStore';
 
@@ -27,14 +26,13 @@ const SIZE_CLASS: Record<MapTextSize, string> = {
   huge: 'text-3xl',
 };
 
-/** Render inline markdown (**bold**, *italic*, ~~strike~~) for the read view. */
-function renderInline(text: string): React.ReactNode {
-  if (!text) return null;
+/** Render inline markdown (**bold**, *italic*, ~~strike~~) for one line. */
+function renderInlineLine(text: string, keyBase: number): React.ReactNode[] {
   const nodes: React.ReactNode[] = [];
   const re = /(\*\*([^*]+)\*\*|\*([^*]+)\*|~~([^~]+)~~)/g;
   let last = 0;
   let m: RegExpExecArray | null;
-  let key = 0;
+  let key = keyBase * 1000;
   while ((m = re.exec(text)) !== null) {
     if (m.index > last) nodes.push(text.slice(last, m.index));
     if (m[2] != null) nodes.push(<strong key={key++}>{m[2]}</strong>);
@@ -44,6 +42,18 @@ function renderInline(text: string): React.ReactNode {
   }
   if (last < text.length) nodes.push(text.slice(last));
   return nodes;
+}
+
+/** Render multi-line text with inline markdown per line (read view). */
+function renderMultiline(text: string): React.ReactNode {
+  if (!text) return null;
+  const lines = text.split('\n');
+  return lines.map((line, i) => (
+    <React.Fragment key={i}>
+      {i > 0 && <br />}
+      {renderInlineLine(line, i)}
+    </React.Fragment>
+  ));
 }
 
 interface TableCellProps {
@@ -60,7 +70,7 @@ export function TableCell({ cell, rowIndex, cellIndex, color, textSize, readOnly
   const caret = useMap((s) => s.caret);
   const editing = useMap((s) => s.editing);
   const selection = useMap((s) => s.selection);
-  const inputRef = React.useRef<HTMLInputElement>(null);
+  const taRef = React.useRef<HTMLTextAreaElement>(null);
 
   const isCaretCell = caret?.row === rowIndex && caret?.cell === cellIndex;
   const isEditingHere = isCaretCell && editing && !readOnly;
@@ -69,10 +79,18 @@ export function TableCell({ cell, rowIndex, cellIndex, color, textSize, readOnly
     (selection.kind === 'row' && selection.row === rowIndex) ||
     selection.kind === 'table';
 
-  // Focus + restore caret offset when this becomes the active editing cell.
+  // Auto-size the textarea to its content so the flex container can center it.
+  React.useLayoutEffect(() => {
+    const el = taRef.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight}px`;
+  }, [cell.text, textSize, cell.mono, cell.bold]);
+
+  // Focus + restore caret offset when keyboard navigation lands here.
   React.useEffect(() => {
-    if (isEditingHere && inputRef.current) {
-      const el = inputRef.current;
+    if (isEditingHere && taRef.current) {
+      const el = taRef.current;
       el.focus({ preventScroll: true });
       const off = Math.min(caret?.offset ?? el.value.length, el.value.length);
       try {
@@ -83,47 +101,46 @@ export function TableCell({ cell, rowIndex, cellIndex, color, textSize, readOnly
     }
   }, [isEditingHere, caret?.offset, caret?.row, caret?.cell]);
 
-  function state(): GridState {
-    return { table: api.getState().activeTable(), caret: { row: rowIndex, cell: cellIndex, offset: offset() } };
-  }
-  function offset(): number {
-    return inputRef.current?.selectionStart ?? cell.text.length;
+  function gridState(off: number): GridState {
+    return { table: api.getState().activeTable(), caret: { row: rowIndex, cell: cellIndex, offset: off } };
   }
 
-  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
-    const off = offset();
-    const atStart = off === 0;
-    const atEnd = off === cell.text.length;
+  function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    const el = taRef.current;
+    if (!el) return;
+    const off = el.selectionStart ?? cell.text.length;
+    const val = el.value;
+    const atStart = off === 0 && el.selectionEnd === 0;
+    const atEnd = off === val.length && el.selectionEnd === val.length;
+    const atFirstLine = val.lastIndexOf('\n', off - 1) === -1;
+    const atLastLine = val.indexOf('\n', off) === -1;
 
     if (e.key === '|') {
       e.preventDefault();
-      api.getState().applyGrid(typePipe(state()));
+      api.getState().applyGrid(typePipe(gridState(off)));
       return;
     }
     if (e.key === 'Enter') {
+      // Shift+Enter inserts a line break inside the cell (default behavior).
+      if (e.shiftKey) return;
       e.preventDefault();
-      if (e.shiftKey) {
-        api.getState().applyGrid(typeShiftEnter(state()));
-        return;
-      }
-      // `---` separator → header row.
       if (cell.text === '---') {
-        const dashed = applyHeaderDashes(state());
+        const dashed = applyHeaderDashes(gridState(off));
         if (dashed) {
           api.getState().applyGrid(dashed);
           return;
         }
       }
-      api.getState().applyGrid(typeEnter(state()));
+      api.getState().applyGrid(typeEnter(gridState(off)));
       return;
     }
     if (e.key === 'Tab') {
       e.preventDefault();
-      api.getState().applyGrid(moveTab(state(), e.shiftKey ? -1 : 1));
+      api.getState().applyGrid(moveTab(gridState(off), e.shiftKey ? -1 : 1));
       return;
     }
     if (e.key === 'Backspace' && atStart) {
-      const next = backspaceAtStart(state());
+      const next = backspaceAtStart(gridState(off));
       if (next) {
         e.preventDefault();
         api.getState().applyGrid(next);
@@ -131,7 +148,7 @@ export function TableCell({ cell, rowIndex, cellIndex, color, textSize, readOnly
       return;
     }
     if ((e.key === 'Delete' || (e.key === 'Backspace' && (e.metaKey || e.ctrlKey))) && atEnd) {
-      const next = deleteAtEnd(state());
+      const next = deleteAtEnd(gridState(off));
       if (next) {
         e.preventDefault();
         api.getState().applyGrid(next);
@@ -140,99 +157,126 @@ export function TableCell({ cell, rowIndex, cellIndex, color, textSize, readOnly
     }
     if (e.key === 'ArrowLeft' && atStart) {
       e.preventDefault();
-      api.getState().applyGrid(moveHorizontal(state(), -1));
+      api.getState().applyGrid(moveHorizontal(gridState(off), -1));
       return;
     }
     if (e.key === 'ArrowRight' && atEnd) {
       e.preventDefault();
-      api.getState().applyGrid(moveHorizontal(state(), 1));
+      api.getState().applyGrid(moveHorizontal(gridState(off), 1));
       return;
     }
-    if (e.key === 'ArrowUp') {
+    if (e.key === 'ArrowUp' && atFirstLine) {
       e.preventDefault();
-      api.getState().applyGrid(moveVertical(state(), -1));
+      api.getState().applyGrid(moveVertical(gridState(off), -1));
       return;
     }
-    if (e.key === 'ArrowDown') {
+    if (e.key === 'ArrowDown' && atLastLine) {
       e.preventDefault();
-      api.getState().applyGrid(moveVertical(state(), 1));
+      api.getState().applyGrid(moveVertical(gridState(off), 1));
       return;
     }
     if (e.key === 'Escape') {
       e.preventDefault();
       api.getState().setEditing(false);
       api.getState().select({ kind: 'cell', row: rowIndex, cell: cellIndex });
-      inputRef.current?.blur();
+      el.blur();
     }
   }
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
     const value = e.target.value;
     const newOffset = e.target.selectionStart ?? value.length;
-    api.getState().applyGrid(setCellText(state(), value, newOffset));
+    api.getState().applyGrid(setCellText(gridState(newOffset), value, newOffset));
   }
 
-  function handleMouseDown() {
+  function handleFocus() {
     if (readOnly) return;
-    // Single click enters edit mode directly (and selects the cell so the
-    // style panel targets it).
-    api.getState().select({ kind: 'cell', row: rowIndex, cell: cellIndex });
-    api.getState().setCaret({ row: rowIndex, cell: cellIndex, offset: cell.text.length });
-    api.getState().setEditing(true);
+    const st = api.getState();
+    const already = st.caret?.row === rowIndex && st.caret?.cell === cellIndex && st.editing;
+    if (!already) {
+      st.select({ kind: 'cell', row: rowIndex, cell: cellIndex });
+      st.setCaret({ row: rowIndex, cell: cellIndex, offset: cell.text.length });
+      st.setEditing(true);
+    }
+  }
+
+  function handleMouseDown(e: React.MouseEvent) {
+    if (readOnly) return;
+    // Clicking anywhere in the cell (incl. padding) focuses the text field.
+    if (e.target !== taRef.current) {
+      e.preventDefault();
+      const el = taRef.current;
+      el?.focus({ preventScroll: true });
+      const len = cell.text.length;
+      requestAnimationFrame(() => {
+        try {
+          el?.setSelectionRange(len, len);
+        } catch {
+          /* noop */
+        }
+      });
+    }
+    const st = api.getState();
+    st.select({ kind: 'cell', row: rowIndex, cell: cellIndex });
+    st.setCaret({ row: rowIndex, cell: cellIndex, offset: cell.text.length });
+    st.setEditing(true);
   }
 
   const sizeClass = SIZE_CLASS[textSize];
   const fontFamily = cell.mono ? 'font-mono' : 'font-sans';
   const weight = color.isHeader || cell.bold ? 'font-semibold' : 'font-normal';
-  const align =
-    cell.align === 'center' ? 'text-center' : cell.align === 'right' ? 'text-right' : 'text-left';
-
-  const style: React.CSSProperties = color.isHeader
-    ? { borderColor: 'var(--separator1)' }
-    : { backgroundColor: color.fill, borderColor: color.border, color: color.text };
+  const alignClass =
+    cell.align === 'left' ? 'text-left' : cell.align === 'right' ? 'text-right' : 'text-center';
+  const justify =
+    cell.align === 'left' ? 'justify-start' : cell.align === 'right' ? 'justify-end' : 'justify-center';
 
   return (
     <div
       data-cell
+      data-cellpos={`${rowIndex}:${cellIndex}`}
       onMouseDown={handleMouseDown}
       className={cn(
-        'relative flex h-full min-w-0 items-start overflow-hidden border px-2 py-1.5',
-        color.isHeader && 'bg-bg2 text-fg0',
+        'relative flex h-full min-w-0 items-center overflow-hidden rounded-[2px] border px-3 py-2',
+        justify,
         isSelected && !readOnly && 'outline outline-2 outline-[var(--fgAccent1)] -outline-offset-2',
         !readOnly && 'cursor-text',
       )}
-      style={style}
+      style={{ backgroundColor: color.fill, borderColor: color.border, color: color.text }}
     >
-      {isEditingHere ? (
-        <input
-          ref={inputRef}
-          value={cell.text}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-          placeholder="Add text"
-          spellCheck={false}
-          className={cn(
-            'w-full bg-transparent leading-snug outline-none placeholder:text-[var(--fg4)]',
-            sizeClass,
-            fontFamily,
-            weight,
-            align,
-          )}
-        />
-      ) : (
-        <span
+      {readOnly ? (
+        <div
           className={cn(
             'w-full whitespace-pre-wrap break-words leading-snug',
             sizeClass,
             fontFamily,
             weight,
-            align,
+            alignClass,
             cell.italic && 'italic',
             cell.strike && 'line-through',
           )}
         >
-          {renderInline(cell.text)}
-        </span>
+          {renderMultiline(cell.text)}
+        </div>
+      ) : (
+        <textarea
+          ref={taRef}
+          rows={1}
+          value={cell.text}
+          onChange={handleChange}
+          onKeyDown={handleKeyDown}
+          onFocus={handleFocus}
+          placeholder={isEditingHere ? 'Add text' : ''}
+          spellCheck={false}
+          className={cn(
+            'w-full resize-none overflow-hidden bg-transparent leading-snug outline-none placeholder:text-[var(--fg4)]',
+            sizeClass,
+            fontFamily,
+            weight,
+            alignClass,
+            cell.italic && 'italic',
+            cell.strike && 'line-through',
+          )}
+        />
       )}
     </div>
   );

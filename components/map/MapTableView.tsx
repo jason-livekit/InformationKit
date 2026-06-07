@@ -146,6 +146,7 @@ export function MapTableView({ table, zoom, revealCount, readOnly }: MapTableVie
           {colW.map((w, c) => (
             <div
               key={`ch-${c}`}
+              data-colpos={c}
               onPointerDown={(e) => dragReorder(e, 'col', c)}
               title="Select / drag column"
               className={cn(
@@ -160,6 +161,7 @@ export function MapTableView({ table, zoom, revealCount, readOnly }: MapTableVie
           {rowH.map((h, r) => (
             <div
               key={`rh-${r}`}
+              data-rowpos={r}
               onPointerDown={(e) => dragReorder(e, 'row', r)}
               title="Select / drag row"
               className={cn(

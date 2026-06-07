@@ -32,15 +32,20 @@ function tableFrom(rows: Array<Array<{ span?: number; hue?: number | null }>>): 
 }
 
 describe('colors: row lightness', () => {
-  it('is lightest for a single row', () => {
-    expect(rowLightness(0, 1)).toBeGreaterThan(0.9);
+  it('anchors the top row at the darkest shade', () => {
+    expect(rowLightness(0, 1)).toBeLessThan(0.7);
   });
-  it('steps dark (top) to light (bottom)', () => {
-    const top = rowLightness(0, 3);
-    const mid = rowLightness(1, 3);
-    const bot = rowLightness(2, 3);
-    expect(top).toBeLessThan(mid);
-    expect(mid).toBeLessThan(bot);
+  it('steps dark (top) to light (bottom) in clearly-visible jumps', () => {
+    const top = rowLightness(0, 8);
+    const next = rowLightness(1, 8);
+    expect(top).toBeLessThan(next);
+    expect(next - top).toBeGreaterThan(0.05); // noticeable jump, not subtle
+  });
+  it('caps at the lightest shade so deep rows stay equally light', () => {
+    const deep = rowLightness(20, 30);
+    const deeper = rowLightness(25, 30);
+    expect(deep).toBe(deeper);
+    expect(deep).toBeLessThanOrEqual(0.95);
   });
 });
 

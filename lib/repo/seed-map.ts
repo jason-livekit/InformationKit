@@ -10,7 +10,7 @@ function cell(text: string, opts?: Partial<MapCell>): MapCell {
     bold: false,
     italic: false,
     strike: false,
-    align: 'left',
+    align: 'center',
     hue: null,
     ...opts,
   };

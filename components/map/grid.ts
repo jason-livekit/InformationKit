@@ -47,7 +47,7 @@ export function makeCell(text = ''): MapCell {
     bold: false,
     italic: false,
     strike: false,
-    align: 'left',
+    align: 'center',
     hue: null,
   };
 }
