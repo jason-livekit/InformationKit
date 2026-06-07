@@ -9,13 +9,21 @@ import { makeId } from '@/lib/repo/ids';
 
 /**
  * Pure grid engine for journey maps. Every function takes a map and returns a
- * new map (immutably), never mutating the input. Two invariants are maintained
- * by `normalize`, which runs at the end of every mutation:
+ * new map (immutably), never mutating the input. Invariants are maintained by
+ * `normalize`, which runs at the end of every mutation:
  *
  *  1. A card's `level` equals its swimlane's index (row 0 = coarsest). This is
  *     what the zoom level-of-detail reveal keys off of.
- *  2. A card's `parentId` is the card in the lane directly above whose column
- *     span contains this card's horizontal center, or null.
+ *  2. A card's `parentId` is the tightest card in the lane directly above whose
+ *     column span *overlaps* this card, or null.
+ *  3. Containment: a parent always spans at least the union of its children, so
+ *     stretching/moving a child beyond a parent's edge stretches the parent.
+ *
+ * Placement is free — cards may have gaps between them, and moving a card drops
+ * it wherever you let go. Resizing a card's right edge ripples the same-lane
+ * cards to its right (with their descendants) so widening makes room and
+ * narrowing pulls things back in; other lanes are left alone. The only upward
+ * effect is parent containment (3).
  *
  * The grid is a single base grid of integer time columns shared across every
  * lane, so lanes always stay time-aligned.
@@ -56,34 +64,107 @@ export function collectDescendants(map: JourneyMap, cardId: string): MapCard[] {
   return out;
 }
 
-/**
- * Recompute derived state (level, parentId, columnCount). Called at the end of
- * every mutation so callers never have to maintain these by hand.
- */
-export function normalize(map: JourneyMap): JourneyMap {
-  const withLevels = map.cards.map((c) => {
-    const idx = laneIndex(map, c.laneId);
-    return { ...c, level: idx < 0 ? 0 : idx };
-  });
+/** Two column ranges [aStart,aEnd) and [bStart,bEnd) overlap. */
+function spansOverlap(aStart: number, aEnd: number, bStart: number, bEnd: number): boolean {
+  return aStart < bEnd && bStart < aEnd;
+}
 
-  const cards = withLevels.map((c) => {
-    const idx = laneIndex(map, c.laneId);
+/** Assign each card's parent: the tightest overlapping card in the lane above. */
+function deriveParents(cards: MapCard[], swimlanes: Swimlane[]): MapCard[] {
+  return cards.map((c) => {
+    const idx = swimlanes.findIndex((l) => l.id === c.laneId);
     if (idx <= 0) return { ...c, parentId: null };
-    const aboveLaneId = map.swimlanes[idx - 1]!.id;
-    const center = c.startCol + c.colSpan / 2;
-    const candidates = withLevels.filter(
+    const aboveLaneId = swimlanes[idx - 1]!.id;
+    const cEnd = c.startCol + c.colSpan;
+    const candidates = cards.filter(
       (o) =>
         o.laneId === aboveLaneId &&
-        o.startCol <= center &&
-        center <= o.startCol + o.colSpan,
+        spansOverlap(o.startCol, o.startCol + o.colSpan, c.startCol, cEnd),
     );
-    // Prefer the tightest container (smallest span) when several overlap.
     candidates.sort((a, b) => a.colSpan - b.colSpan);
     return { ...c, parentId: candidates[0]?.id ?? null };
   });
+}
+
+/**
+ * Grow each parent (bottom lane upward) so it spans the union of its children.
+ * Monotonic — only ever widens — so iterating to a fixed point converges.
+ */
+function growParents(cards: MapCard[], swimlanes: Swimlane[]): MapCard[] {
+  const idxOf = (laneId: string) => swimlanes.findIndex((l) => l.id === laneId);
+  const out = cards.map((c) => ({ ...c }));
+  const byId = new Map(out.map((c) => [c.id, c]));
+  const order = [...out].sort((a, b) => idxOf(b.laneId) - idxOf(a.laneId));
+  for (const c of order) {
+    if (!c.parentId) continue;
+    const p = byId.get(c.parentId);
+    if (!p) continue;
+    const ns = Math.min(p.startCol, c.startCol);
+    const ne = Math.max(p.startCol + p.colSpan, c.startCol + c.colSpan);
+    p.startCol = ns;
+    p.colSpan = ne - ns;
+  }
+  return out;
+}
+
+/**
+ * Recompute derived state (level, parentId, parent containment, columnCount).
+ * Called at the end of every mutation so callers never maintain these by hand.
+ */
+export function normalize(map: JourneyMap): JourneyMap {
+  let cards = map.cards.map((c) => {
+    const idx = laneIndex(map, c.laneId);
+    return reconcileDataPoints({ ...c, level: idx < 0 ? 0 : idx });
+  });
+
+  // Derive parents and grow them to contain their children, iterating to a
+  // fixed point (growth can reveal new overlaps a lane further up).
+  for (let iter = 0; iter <= map.swimlanes.length; iter++) {
+    const parented = deriveParents(cards, map.swimlanes);
+    const grown = growParents(parented, map.swimlanes);
+    const changed = grown.some(
+      (c, i) => c.startCol !== parented[i]!.startCol || c.colSpan !== parented[i]!.colSpan,
+    );
+    cards = grown;
+    if (!changed) break;
+  }
+
+  // A data card grown by containment needs its points reconciled to its span.
+  cards = cards.map(reconcileDataPoints);
 
   const columnCount = Math.max(contentRightEdge(cards), MIN_COLUMNS);
   return { ...map, cards, columnCount };
+}
+
+/** Default value used when a data card grows and needs a value for a new slot. */
+const DEFAULT_POINT_VALUE = 50;
+
+/**
+ * Ensure a data card has exactly one point per column offset in its span
+ * (0..colSpan-1). Existing values are preserved; new trailing slots created by
+ * widening carry forward the previous slot's value so the chart extends
+ * naturally. Points are stored as offsets within the card, so structural column
+ * shifts never desync them.
+ */
+function reconcileDataPoints(card: MapCard): MapCard {
+  if (card.kind !== 'data') return card;
+  const series = card.series ?? [];
+  const existing = new Map((card.points ?? []).map((p) => [p.col, p]));
+  const carry: Record<string, number> = {};
+  const points = Array.from({ length: card.colSpan }, (_, offset) => {
+    const prev = existing.get(offset);
+    if (prev) {
+      for (const s of series) {
+        const v = prev.values[s.id];
+        if (typeof v === 'number') carry[s.id] = v;
+      }
+      return { col: offset, values: { ...prev.values } };
+    }
+    const values: Record<string, number> = {};
+    for (const s of series) values[s.id] = carry[s.id] ?? DEFAULT_POINT_VALUE;
+    return { col: offset, values };
+  });
+  return { ...card, points };
 }
 
 // --- Column-level structural edits ------------------------------------------
@@ -160,8 +241,10 @@ export function addCard(map: JourneyMap, input: AddCardInput): { map: JourneyMap
     base.viz = input.viz ?? 'line';
     base.color = input.color ?? 'blue';
     base.series = [{ id: seriesId, label: 'Series 1', color: base.color }];
+    // Points are offsets within the card (0..colSpan-1), not absolute columns,
+    // so they survive any column insert/remove/move.
     base.points = Array.from({ length: colSpan }, (_, i) => ({
-      col: startCol + i,
+      col: i,
       values: { [seriesId]: Math.round(30 + Math.random() * 60) },
     }));
   }
@@ -176,6 +259,26 @@ export function updateCard(
 ): JourneyMap {
   const cards = map.cards.map((c) => (c.id === cardId ? { ...c, ...patch, id: c.id } : c));
   return normalize({ ...map, cards });
+}
+
+/**
+ * Insert a new 1-wide card at column `col` in a lane. If that column already
+ * holds a card (i.e. you're inserting between/adjacent cards), a fresh time
+ * column is opened first so nothing overlaps — the journey-map analogue of
+ * inserting a lane. Gaps just receive the card directly.
+ */
+export function insertCardAt(
+  map: JourneyMap,
+  laneId: string,
+  col: number,
+  kind: MapCard['kind'] = 'card',
+): { map: JourneyMap; cardId: string } {
+  const at = Math.max(0, Math.round(col));
+  const occupied = map.cards.some(
+    (c) => c.laneId === laneId && c.startCol <= at && at < cardEnd(c),
+  );
+  const m = occupied ? insertColumns(map, at, 1) : map;
+  return addCard(m, { laneId, startCol: at, colSpan: 1, kind });
 }
 
 export function removeCard(map: JourneyMap, cardId: string): JourneyMap {
@@ -212,10 +315,21 @@ export function moveCard(
   return normalize({ ...map, cards });
 }
 
+/** The right edge of the closest same-lane card that ends to the left of `card`. */
+function prevSiblingEnd(map: JourneyMap, card: MapCard): number {
+  const ends = map.cards
+    .filter((c) => c.id !== card.id && c.laneId === card.laneId && c.startCol < card.startCol)
+    .map((c) => cardEnd(c));
+  return ends.length ? Math.max(...ends) : 0;
+}
+
 /**
- * Resize a card to `newSpan` columns (>= 1). Widening inserts columns at the
- * card's right edge (pushing everything after it right); narrowing removes them
- * (pulling everything after it left). Descendants stay nested.
+ * Resize a card's right edge to `newSpan` columns (>= 1). Same-lane cards to the
+ * right of this card ripple by the same delta (with their descendants), so
+ * widening pushes everything over to make room and narrowing pulls it back in.
+ * Other lanes are untouched, so stretching into empty space below a wide card
+ * doesn't disturb it unless the card grows past the parent's edge (in which case
+ * `normalize` grows the parent to contain it).
  */
 export function resizeCard(map: JourneyMap, cardId: string, newSpan: number): JourneyMap {
   const card = findCard(map, cardId);
@@ -223,37 +337,47 @@ export function resizeCard(map: JourneyMap, cardId: string, newSpan: number): Jo
   const span = Math.max(1, Math.round(newSpan));
   const delta = span - card.colSpan;
   if (delta === 0) return normalize(map);
-  const rightEdge = cardEnd(card);
 
-  if (delta > 0) {
-    const shifted = insertColumns(map, rightEdge, delta);
-    return updateCard(shifted, cardId, { colSpan: span });
+  const oldEnd = cardEnd(card);
+  const shiftIds = new Set<string>();
+  for (const c of map.cards) {
+    if (c.id !== card.id && c.laneId === card.laneId && c.startCol >= oldEnd) {
+      shiftIds.add(c.id);
+      for (const d of collectDescendants(map, c.id)) shiftIds.add(d.id);
+    }
   }
-  // Narrow: drop the trailing columns; removeColumns shrinks this card too.
-  const d = -delta;
-  const newRightEdge = card.startCol + span;
-  return removeColumns(map, newRightEdge, d);
+
+  const cards = map.cards.map((c) => {
+    if (c.id === card.id) return { ...c, colSpan: span };
+    if (shiftIds.has(c.id)) return { ...c, startCol: Math.max(0, c.startCol + delta) };
+    return c;
+  });
+  return normalize({ ...map, cards });
 }
 
 /**
  * Move a card's left edge while keeping its right edge fixed (left-handle
- * resize): widen-left inserts columns before the card, narrow-left removes them.
+ * resize). Dragging in (rightward) narrows it; dragging out (leftward) widens
+ * it, consuming any gap up to the previous sibling. Pulling the left edge past
+ * column 0 extends the timeline leftward: fresh columns are opened at the origin
+ * (everything shifts right) so the card grows while coordinates stay >= 0.
  */
 export function resizeCardLeft(map: JourneyMap, cardId: string, newStartCol: number): JourneyMap {
   const card = findCard(map, cardId);
   if (!card) return map;
   const right = cardEnd(card);
-  const start = Math.max(0, Math.min(Math.round(newStartCol), right - 1));
-  const delta = card.startCol - start; // positive => grow to the left
-  if (delta === 0) return normalize(map);
+  const target = Math.min(Math.round(newStartCol), right - 1);
 
-  if (delta > 0) {
-    const shifted = insertColumns(map, card.startCol, delta);
-    // After insert, this card's startCol shifted right by delta; pull it back.
-    return updateCard(shifted, cardId, { startCol: start, colSpan: card.colSpan + delta });
+  if (target < 0) {
+    const shift = -target;
+    const shifted = insertColumns(map, 0, shift); // shifts every card right by `shift`
+    return updateCard(shifted, cardId, { startCol: 0, colSpan: right + shift });
   }
-  const d = -delta; // shrink from the left
-  return removeColumns(map, card.startCol, d);
+
+  const floor = Math.max(0, prevSiblingEnd(map, card));
+  const start = Math.max(target, floor);
+  if (start === card.startCol) return normalize(map);
+  return updateCard(map, cardId, { startCol: start, colSpan: right - start });
 }
 
 // --- Swimlane edits ----------------------------------------------------------
@@ -268,6 +392,18 @@ export function addLane(map: JourneyMap, name = '', atIndex?: number): JourneyMa
 
 export function renameLane(map: JourneyMap, laneId: string, name: string): JourneyMap {
   const swimlanes = map.swimlanes.map((l) => (l.id === laneId ? { ...l, name } : l));
+  return normalize({ ...map, swimlanes });
+}
+
+/** Reorder a lane from `fromIndex` to `toIndex`. Levels/parents recompute. */
+export function moveLane(map: JourneyMap, fromIndex: number, toIndex: number): JourneyMap {
+  const n = map.swimlanes.length;
+  if (fromIndex < 0 || fromIndex >= n) return map;
+  const to = Math.max(0, Math.min(Math.round(toIndex), n - 1));
+  if (to === fromIndex) return normalize(map);
+  const swimlanes = [...map.swimlanes];
+  const [moved] = swimlanes.splice(fromIndex, 1);
+  swimlanes.splice(to, 0, moved!);
   return normalize({ ...map, swimlanes });
 }
 

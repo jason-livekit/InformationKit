@@ -7,8 +7,10 @@ import {
   collectDescendants,
   contentRightEdge,
   findCard,
+  insertCardAt,
   insertColumns,
   moveCard,
+  moveLane,
   normalize,
   removeCard,
   removeColumns,
@@ -134,34 +136,52 @@ describe('insertColumns / removeColumns', () => {
   });
 });
 
-describe('resizeCard', () => {
-  it('widening pushes following cards right and keeps descendants nested', () => {
+describe('resizeCard (ripple + containment)', () => {
+  it('widening pushes later same-lane siblings right by the delta', () => {
     let map = baseMap();
-    const parent = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 3 }); // [0,3)
-    map = parent.map;
-    const child = addCard(map, { laneId: 'lane_b', startCol: 1, colSpan: 1 }); // inside parent
-    map = child.map;
-    const sibling = addCard(map, { laneId: 'lane_a', startCol: 4, colSpan: 1 }); // [4,5)
+    const card = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 3 }); // [0,3)
+    map = card.map;
+    const sibling = addCard(map, { laneId: 'lane_a', startCol: 6, colSpan: 1 }); // [6,7)
     map = sibling.map;
 
-    map = resizeCard(map, parent.cardId, 5); // grow parent by 2 to the right
-    expect(findCard(map, parent.cardId)!.colSpan).toBe(5);
-    expect(findCard(map, sibling.cardId)!.startCol).toBe(6); // 4 + 2
-    // child stayed where it was and is still parented
-    expect(findCard(map, child.cardId)!.startCol).toBe(1);
-    expect(findCard(map, child.cardId)!.parentId).toBe(parent.cardId);
+    map = resizeCard(map, card.cardId, 5); // grow by +2 → [0,5)
+    expect(findCard(map, card.cardId)!.colSpan).toBe(5);
+    expect(findCard(map, sibling.cardId)!.startCol).toBe(8); // pushed by +2
   });
 
-  it('narrowing pulls following cards left', () => {
+  it('widening pushes an adjacent sibling to make room', () => {
+    let map = baseMap();
+    const a = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 2 }); // [0,2)
+    map = a.map;
+    const b = addCard(map, { laneId: 'lane_a', startCol: 2, colSpan: 1 }); // [2,3) adjacent
+    map = b.map;
+
+    map = resizeCard(map, a.cardId, 4); // grow by +2
+    expect(findCard(map, a.cardId)!.colSpan).toBe(4); // [0,4)
+    expect(findCard(map, b.cardId)!.startCol).toBe(4); // pushed right to stay adjacent
+  });
+
+  it('narrowing pulls following cards left by the delta', () => {
     let map = baseMap();
     const card = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 4 }); // [0,4)
     map = card.map;
-    const after = addCard(map, { laneId: 'lane_b', startCol: 5, colSpan: 1 }); // [5,6)
+    const after = addCard(map, { laneId: 'lane_a', startCol: 5, colSpan: 1 }); // [5,6)
     map = after.map;
 
-    map = resizeCard(map, card.cardId, 2); // shrink by 2
+    map = resizeCard(map, card.cardId, 2); // shrink by -2
     expect(findCard(map, card.cardId)!.colSpan).toBe(2);
-    expect(findCard(map, after.cardId)!.startCol).toBe(3); // 5 - 2
+    expect(findCard(map, after.cardId)!.startCol).toBe(3); // pulled in by -2
+  });
+
+  it('leaves cards in other lanes untouched when rippling', () => {
+    let map = baseMap();
+    const a = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 2 }); // [0,2)
+    map = a.map;
+    const other = addCard(map, { laneId: 'lane_b', startCol: 6, colSpan: 1 }); // other lane
+    map = other.map;
+
+    map = resizeCard(map, a.cardId, 4);
+    expect(findCard(map, other.cardId)!.startCol).toBe(6); // unaffected
   });
 
   it('never goes below a width of 1', () => {
@@ -171,10 +191,25 @@ describe('resizeCard', () => {
     map = resizeCard(map, card.cardId, 0);
     expect(findCard(map, card.cardId)!.colSpan).toBe(1);
   });
+
+  it('grows the parent when a child is stretched beyond its bounds', () => {
+    let map = baseMap();
+    const parent = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 3 }); // [0,3)
+    map = parent.map;
+    const child = addCard(map, { laneId: 'lane_b', startCol: 1, colSpan: 1 }); // inside
+    map = child.map;
+
+    map = resizeCard(map, child.cardId, 5); // child → [1,6), beyond parent's right edge
+    expect(findCard(map, child.cardId)!.colSpan).toBe(5);
+    expect(findCard(map, child.cardId)!.parentId).toBe(parent.cardId);
+    // Parent stretched to contain the child: [0,6).
+    expect(findCard(map, parent.cardId)!.startCol).toBe(0);
+    expect(findCard(map, parent.cardId)!.colSpan).toBe(6);
+  });
 });
 
-describe('resizeCardLeft', () => {
-  it('grows to the left and shifts earlier-overlapping content', () => {
+describe('resizeCardLeft (free placement)', () => {
+  it('grows the left edge when there is room', () => {
     let map = baseMap();
     const card = addCard(map, { laneId: 'lane_a', startCol: 4, colSpan: 2 }); // [4,6)
     map = card.map;
@@ -182,6 +217,32 @@ describe('resizeCardLeft', () => {
     const c = findCard(map, card.cardId)!;
     expect(c.startCol).toBe(2);
     expect(c.colSpan).toBe(4); // right edge stays at 6
+  });
+
+  it('clamps so it cannot overlap the previous sibling', () => {
+    let map = baseMap();
+    const prev = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 2 }); // [0,2)
+    map = prev.map;
+    const card = addCard(map, { laneId: 'lane_a', startCol: 4, colSpan: 2 }); // [4,6)
+    map = card.map;
+    map = resizeCardLeft(map, card.cardId, 0); // would overlap prev → clamp to 2
+    const c = findCard(map, card.cardId)!;
+    expect(c.startCol).toBe(2);
+    expect(c.colSpan).toBe(4); // right edge stays at 6
+  });
+
+  it('widens past the origin by opening columns and shifting the rest right', () => {
+    let map = baseMap();
+    const card = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 2 }); // [0,2)
+    map = card.map;
+    const other = addCard(map, { laneId: 'lane_b', startCol: 0, colSpan: 1 }); // [0,1)
+    map = other.map;
+
+    map = resizeCardLeft(map, card.cardId, -3); // pull left edge 3 past the origin
+    const c = findCard(map, card.cardId)!;
+    expect(c.startCol).toBe(0);
+    expect(c.colSpan).toBe(5); // grew left by 3 (right edge 2 → 5 after shift)
+    expect(findCard(map, other.cardId)!.startCol).toBe(3); // everything shifted right by 3
   });
 });
 
@@ -259,6 +320,43 @@ describe('lanes', () => {
     expect(map.swimlanes.find((l) => l.id === 'lane_b')).toBeUndefined();
     expect(map.cards.some((c) => c.laneId === 'lane_b')).toBe(false);
   });
+
+  it('moveLane reorders lanes and recomputes card levels', () => {
+    let map = baseMap();
+    const card = addCard(map, { laneId: 'lane_c', startCol: 0, colSpan: 1 }); // index 2
+    map = card.map;
+    expect(findCard(map, card.cardId)!.level).toBe(2);
+    map = moveLane(map, 2, 0); // lane_c → top
+    expect(map.swimlanes[0].id).toBe('lane_c');
+    expect(findCard(map, card.cardId)!.level).toBe(0);
+  });
+});
+
+describe('insertCardAt', () => {
+  it('drops a card into an empty gap without shifting anything', () => {
+    let map = baseMap();
+    const a = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 2 }); // [0,2)
+    map = a.map;
+    const b = addCard(map, { laneId: 'lane_a', startCol: 5, colSpan: 1 }); // [5,6)
+    map = b.map;
+    const ins = insertCardAt(map, 'lane_a', 3); // gap at col 3
+    map = ins.map;
+    expect(findCard(map, ins.cardId)!.startCol).toBe(3);
+    expect(findCard(map, b.cardId)!.startCol).toBe(5); // unchanged
+  });
+
+  it('opens a new column when inserting between adjacent cards', () => {
+    let map = baseMap();
+    const a = addCard(map, { laneId: 'lane_a', startCol: 0, colSpan: 2 }); // [0,2)
+    map = a.map;
+    const b = addCard(map, { laneId: 'lane_a', startCol: 2, colSpan: 1 }); // [2,3) adjacent
+    map = b.map;
+    const ins = insertCardAt(map, 'lane_a', 2); // between a and b
+    map = ins.map;
+    expect(findCard(map, ins.cardId)!.startCol).toBe(2);
+    expect(findCard(map, b.cardId)!.startCol).toBe(3); // pushed right to make room
+    expect(findCard(map, a.cardId)!.startCol).toBe(0); // unchanged
+  });
 });
 
 describe('columnCount + sizing', () => {
@@ -276,6 +374,65 @@ describe('columnCount + sizing', () => {
     map = wide.map;
     map = removeCard(map, wide.cardId);
     expect(map.columnCount).toBe(MIN_COLUMNS);
+  });
+});
+
+describe('data card points', () => {
+  it('stores points as offsets within the card', () => {
+    const { map, cardId } = addCard(baseMap(), {
+      laneId: 'lane_a',
+      startCol: 5,
+      colSpan: 3,
+      kind: 'data',
+    });
+    const cols = findCard(map, cardId)!.points!.map((p) => p.col);
+    expect(cols).toEqual([0, 1, 2]);
+  });
+
+  it('adds points when a data card is widened', () => {
+    let map = baseMap();
+    const { map: m, cardId } = addCard(map, {
+      laneId: 'lane_a',
+      startCol: 0,
+      colSpan: 2,
+      kind: 'data',
+    });
+    map = m;
+    expect(findCard(map, cardId)!.points).toHaveLength(2);
+    map = resizeCard(map, cardId, 5);
+    const card = findCard(map, cardId)!;
+    expect(card.colSpan).toBe(5);
+    expect(card.points).toHaveLength(5);
+    expect(card.points!.map((p) => p.col)).toEqual([0, 1, 2, 3, 4]);
+  });
+
+  it('drops trailing points when a data card is narrowed and preserves earlier values', () => {
+    let map = baseMap();
+    const seriesId = 's_keep';
+    map.cards.push({
+      id: 'mc_data',
+      kind: 'data',
+      laneId: 'lane_a',
+      startCol: 0,
+      colSpan: 4,
+      level: 0,
+      parentId: null,
+      title: '',
+      color: 'blue',
+      viz: 'line',
+      series: [{ id: seriesId, label: 'S', color: 'blue' }],
+      points: [
+        { col: 0, values: { [seriesId]: 10 } },
+        { col: 1, values: { [seriesId]: 20 } },
+        { col: 2, values: { [seriesId]: 30 } },
+        { col: 3, values: { [seriesId]: 40 } },
+      ],
+    });
+    map = normalize(map);
+    map = resizeCard(map, 'mc_data', 2);
+    const card = findCard(map, 'mc_data')!;
+    expect(card.points).toHaveLength(2);
+    expect(card.points!.map((p) => p.values[seriesId])).toEqual([10, 20]);
   });
 });
 

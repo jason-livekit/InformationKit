@@ -172,6 +172,21 @@ export const MapCardSchema = z.object({
   parentId: z.string().nullable().default(null),
   title: z.string().default(''),
   color: MapColorSchema.default('neutral'),
+  // --- Presentation (all optional; sensible fallbacks applied at render). ---
+  /** Background fill treatment. `soft` is the default light tint; `solid` is a
+   *  bold filled color; `none` is transparent (outline-only). */
+  fillStyle: z.enum(['soft', 'solid', 'none']).optional(),
+  /** Outline color. Falls back to the fill color's border tint when unset. */
+  outlineColor: MapColorSchema.optional(),
+  /** Outline style. Defaults to a solid border. */
+  outlineStyle: z.enum(['solid', 'dashed', 'none']).optional(),
+  /** Relative title size. Scales the auto-fit ceiling. Defaults to medium. */
+  fontScale: z.enum(['small', 'medium', 'large']).optional(),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  strike: z.boolean().optional(),
+  /** Horizontal text alignment. Defaults to center for cards. */
+  align: z.enum(['left', 'center', 'right']).optional(),
   // Data-card fields (present when kind === 'data').
   viz: MapVizSchema.optional(),
   series: z.array(MapSeriesSchema).optional(),

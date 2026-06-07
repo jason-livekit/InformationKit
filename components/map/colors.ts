@@ -1,3 +1,4 @@
+import type * as React from 'react';
 import type { MapColor } from '@/lib/repo/schemas';
 
 /** Order shown in the color picker. */
@@ -61,4 +62,48 @@ export const COLOR_HEX: Record<MapColor, string> = {
 
 export function colorLabel(color: MapColor): string {
   return color.charAt(0).toUpperCase() + color.slice(1);
+}
+
+export type FillStyle = 'soft' | 'solid' | 'none';
+
+export const FILL_STYLES: Array<{ value: FillStyle; label: string }> = [
+  { value: 'soft', label: 'Soft' },
+  { value: 'solid', label: 'Solid' },
+  { value: 'none', label: 'None' },
+];
+
+/**
+ * Resolves a card's fill treatment. `soft` (the default) keeps the existing
+ * pastel surface classes (theme-aware, including the neutral surface token), so
+ * it's expressed as classes; `solid` and `none` are inline overrides.
+ */
+export function cardFill(
+  color: MapColor,
+  fill: FillStyle | undefined,
+): { useSurface: boolean; style: React.CSSProperties; textClass: string } {
+  const f = fill ?? 'soft';
+  if (f === 'solid') {
+    return { useSurface: false, style: { background: COLOR_HEX[color] }, textClass: 'text-white' };
+  }
+  if (f === 'none') {
+    return { useSurface: false, style: { background: 'transparent' }, textClass: 'text-fg0' };
+  }
+  return { useSurface: true, style: {}, textClass: '' };
+}
+
+/**
+ * Inline border style for a card given its outline settings. Falls back to a
+ * subtle tint of the fill color when no outline color is set.
+ */
+export function cardOutlineStyle(
+  fill: MapColor,
+  outlineColor: MapColor | undefined,
+  outlineStyle: 'solid' | 'dashed' | 'none' | undefined,
+): React.CSSProperties {
+  const style = outlineStyle ?? 'solid';
+  if (style === 'none') {
+    return { border: '1.5px solid transparent' };
+  }
+  const hex = COLOR_HEX[outlineColor ?? fill];
+  return { border: `1.5px ${style} ${hex}` };
 }

@@ -19,7 +19,6 @@ import {
   COL_W,
   type Transform,
   clampScale,
-  visibleLevelForScale,
 } from './constants';
 import { MapCanvas } from './MapCanvas';
 import { useMapStore } from './use-map-store';
@@ -36,16 +35,30 @@ export function MapEditor({ map: initialMap, projectName, projectId }: MapEditor
   const { map, actions, saveState } = useMapStore(initialMap);
 
   const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const [laneLabelW, setLaneLabelW] = React.useState(LANE_LABEL_W);
   const [transform, setTransform] = React.useState<Transform>({
     scale: 0.72,
     tx: LANE_LABEL_W + WORLD_PAD,
     ty: WORLD_PAD,
   });
   const [drawKind, setDrawKind] = React.useState<DrawKind>('card');
-  const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
 
-  const maxLevel = Math.max(0, map.swimlanes.length - 1);
-  const visibleLevel = visibleLevelForScale(transform.scale, maxLevel);
+  // Delete / Backspace removes the selected card(s) (unless editing text).
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+      const el = document.activeElement as HTMLElement | null;
+      const tag = el?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || el?.isContentEditable) return;
+      if (selectedIds.length === 0) return;
+      e.preventDefault();
+      selectedIds.forEach((id) => actions.removeCard(id));
+      setSelectedIds([]);
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedIds, actions]);
 
   const [titleDraft, setTitleDraft] = React.useState(map.name);
   const [editingTitle, setEditingTitle] = React.useState(false);
@@ -56,21 +69,21 @@ export function MapEditor({ map: initialMap, projectName, projectId }: MapEditor
   function zoomBy(factor: number) {
     const el = containerRef.current;
     const cx = el ? el.clientWidth / 2 : 0;
-    const cy = el ? el.clientHeight / 2 : 0;
     setTransform((t) => {
       const ns = clampScale(t.scale * factor);
       const k = ns / t.scale;
-      return { scale: ns, tx: cx - (cx - t.tx) * k, ty: cy - (cy - t.ty) * k };
+      // Zoom the time axis about the viewport center on X only; Y is fixed.
+      return { scale: ns, tx: cx - (cx - t.tx) * k, ty: t.ty };
     });
   }
 
   function fit() {
     const el = containerRef.current;
     if (!el) return;
-    const availW = el.clientWidth - LANE_LABEL_W - WORLD_PAD * 2;
+    const availW = el.clientWidth - laneLabelW - WORLD_PAD * 2;
     const worldW = Math.max(1, map.columnCount * COL_W);
     const ns = clampScale(Math.min(1.2, availW / worldW));
-    setTransform({ scale: ns, tx: LANE_LABEL_W + WORLD_PAD, ty: WORLD_PAD });
+    setTransform({ scale: ns, tx: laneLabelW + WORLD_PAD, ty: WORLD_PAD });
   }
 
   return (
@@ -162,13 +175,14 @@ export function MapEditor({ map: initialMap, projectName, projectId }: MapEditor
           actions={actions}
           transform={transform}
           setTransform={setTransform}
-          visibleLevel={visibleLevel}
           drawKind={drawKind}
-          selectedId={selectedId}
-          setSelectedId={setSelectedId}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+          laneLabelW={laneLabelW}
+          setLaneLabelW={setLaneLabelW}
         />
         <div className="text-fg4 bg-bg1/80 pointer-events-none absolute bottom-3 right-3 rounded border border-separator1 px-2 py-1 text-[10px] backdrop-blur">
-          Pinch to zoom · scroll to pan · click a cell to add · showing level {visibleLevel + 1}/{maxLevel + 1}
+          Pinch to zoom · scroll to pan · click an empty cell to add · select a card to style it · ⌫ to delete
         </div>
       </div>
     </div>

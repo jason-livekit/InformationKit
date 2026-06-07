@@ -1,27 +1,12 @@
 'use client';
 
 import * as React from 'react';
+import { createPortal } from 'react-dom';
 import type { MapCard, MapViz } from '@/lib/repo/schemas';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/bytes/DropdownMenu';
 import { COLOR_HEX } from './colors';
 import type { MapActions } from './use-map-store';
 
 const PAD = 6;
-
-const VIZ_LABELS: Record<MapViz, string> = {
-  line: 'Line',
-  multiLine: 'Multiple lines',
-  bars: 'Bars',
-  stackedBars: 'Stacked bars',
-  scatter: 'Scatter',
-  lineWithPoints: 'Line + points',
-};
-const VIZ_ORDER: MapViz[] = ['line', 'multiLine', 'bars', 'stackedBars', 'scatter', 'lineWithPoints'];
 
 function useSize(ref: React.RefObject<HTMLDivElement | null>) {
   const [size, setSize] = React.useState({ w: 0, h: 0 });
@@ -40,14 +25,36 @@ function useSize(ref: React.RefObject<HTMLDivElement | null>) {
 
 interface DataCardViewProps {
   card: MapCard;
-  columnCount: number;
   actions: MapActions;
+}
+
+interface ActivePoint {
+  col: number;
+  x: number;
+  y: number;
+}
+
+interface PointDrag {
+  col: number;
+  seriesId: string;
+  startY: number;
+  startX: number;
+  plotTop: number;
+  plotH: number;
+  maxVal: number;
+  moved: boolean;
 }
 
 export function DataCardView({ card, actions }: DataCardViewProps) {
   const ref = React.useRef<HTMLDivElement | null>(null);
   const { w, h } = useSize(ref);
-  const [activeCol, setActiveCol] = React.useState<number | null>(null);
+  const [active, setActive] = React.useState<ActivePoint | null>(null);
+  const dragRef = React.useRef<PointDrag | null>(null);
+  const justDragged = React.useRef(false);
+
+  React.useEffect(() => {
+    setActive(null);
+  }, [card.colSpan, card.startCol]);
 
   const series = React.useMemo(() => card.series ?? [], [card.series]);
   const points = React.useMemo(
@@ -71,48 +78,74 @@ export function DataCardView({ card, actions }: DataCardViewProps) {
 
   const plotW = Math.max(0, w - PAD * 2);
   const plotH = Math.max(0, h - PAD * 2);
-  const xFor = (col: number) =>
-    PAD + ((col - card.startCol + 0.5) / card.colSpan) * plotW;
+  const xFor = (offset: number) => PAD + ((offset + 0.5) / card.colSpan) * plotW;
   const yFor = (v: number) => PAD + (1 - v / maxVal) * plotH;
 
   const showLines = viz === 'line' || viz === 'multiLine' || viz === 'lineWithPoints';
   const showDots = viz === 'scatter' || viz === 'lineWithPoints';
   const showBars = viz === 'bars' || viz === 'stackedBars';
 
+  // Vertical drag to change a point's value.
+  React.useEffect(() => {
+    function onMove(e: PointerEvent) {
+      const d = dragRef.current;
+      if (!d) return;
+      if (Math.abs(e.clientY - d.startY) > 3 || Math.abs(e.clientX - d.startX) > 3) d.moved = true;
+      if (!d.moved) return;
+      const v = Math.max(0, Math.round(d.maxVal * (1 - (e.clientY - d.plotTop) / Math.max(1, d.plotH))));
+      actions.setPointValue(card.id, d.col, d.seriesId, v);
+    }
+    function onUp() {
+      const d = dragRef.current;
+      if (!d) return;
+      justDragged.current = d.moved;
+      dragRef.current = null;
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+    };
+  }, [actions, card.id]);
+
+  function startPointDrag(e: React.PointerEvent, col: number) {
+    e.stopPropagation();
+    const point = points.find((p) => p.col === col);
+    if (!point) return;
+    const svg = (e.currentTarget as SVGElement).ownerSVGElement;
+    if (!svg) return;
+    const r = svg.getBoundingClientRect();
+    const localY = e.clientY - r.top;
+    // Pick the series whose marker is nearest the cursor.
+    let seriesId = series[0]?.id ?? '';
+    let best = Infinity;
+    for (const s of series) {
+      const d = Math.abs(yFor(point.values[s.id] ?? 0) - localY);
+      if (d < best) {
+        best = d;
+        seriesId = s.id;
+      }
+    }
+    dragRef.current = {
+      col,
+      seriesId,
+      startY: e.clientY,
+      startX: e.clientX,
+      plotTop: r.top + PAD,
+      plotH,
+      maxVal,
+      moved: false,
+    };
+  }
+
+  const slotW = plotW / card.colSpan;
+
   return (
     <div className="relative h-full w-full">
-      {/* Viz type switcher (only interactive; sits in the corner) */}
-      <div data-no-drag className="absolute right-0 top-0 z-10" onPointerDown={(e) => e.stopPropagation()}>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              className="bg-bg1/70 text-fg3 hover:text-fg1 rounded border border-separator2 px-1 text-[9px] leading-tight backdrop-blur"
-            >
-              {VIZ_LABELS[viz]}
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {VIZ_ORDER.map((v) => (
-              <DropdownMenuItem
-                key={v}
-                onSelect={() => {
-                  actions.setViz(card.id, v);
-                  if (v === 'multiLine' && series.length < 2) actions.addSeries(card.id);
-                  if (v === 'stackedBars' && series.length < 2) actions.addSeries(card.id);
-                }}
-              >
-                {VIZ_LABELS[v]}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-
       <div ref={ref} className="h-full w-full">
         {w > 0 && h > 0 && (
           <svg width={w} height={h} className="overflow-visible">
-            {/* baseline */}
             <line
               x1={PAD}
               y1={h - PAD}
@@ -124,7 +157,6 @@ export function DataCardView({ card, actions }: DataCardViewProps) {
 
             {showBars &&
               points.map((p) => {
-                const slotW = plotW / card.colSpan;
                 const barGroupX = xFor(p.col) - slotW * 0.35;
                 const barW = (slotW * 0.7) / (viz === 'stackedBars' ? 1 : Math.max(1, series.length));
                 if (viz === 'stackedBars') {
@@ -204,21 +236,28 @@ export function DataCardView({ card, actions }: DataCardViewProps) {
                 )),
               )}
 
-            {/* Hover/click hit targets per column */}
+            {/* Drag (up/down) or click per column to edit values */}
             {points.map((p) => (
               <g key={`hit-${p.col}`}>
                 <rect
                   data-no-drag
-                  x={xFor(p.col) - plotW / card.colSpan / 2}
+                  x={xFor(p.col) - slotW / 2}
                   y={PAD}
-                  width={plotW / card.colSpan}
+                  width={slotW}
                   height={plotH}
                   fill="transparent"
-                  className="cursor-pointer"
-                  onPointerDown={(e) => e.stopPropagation()}
+                  className="cursor-ns-resize"
+                  onPointerDown={(e) => startPointDrag(e, p.col)}
                   onClick={(e) => {
                     e.stopPropagation();
-                    setActiveCol((c) => (c === p.col ? null : p.col));
+                    if (justDragged.current) {
+                      justDragged.current = false;
+                      return;
+                    }
+                    const r = (e.currentTarget as SVGRectElement).getBoundingClientRect();
+                    setActive((cur) =>
+                      cur?.col === p.col ? null : { col: p.col, x: r.left + r.width / 2, y: r.top },
+                    );
                   }}
                 />
                 {series.map((s) => (
@@ -226,7 +265,7 @@ export function DataCardView({ card, actions }: DataCardViewProps) {
                     key={`marker-${s.id}-${p.col}`}
                     cx={xFor(p.col)}
                     cy={yFor(p.values[s.id] ?? 0)}
-                    r={activeCol === p.col ? 3 : 0}
+                    r={active?.col === p.col ? 3 : 0}
                     fill={COLOR_HEX[s.color]}
                     stroke="white"
                     strokeWidth={0.75}
@@ -239,62 +278,78 @@ export function DataCardView({ card, actions }: DataCardViewProps) {
         )}
       </div>
 
-      {/* Inline point editor */}
-      {activeCol != null && (
-        <PointEditor
+      {active && (
+        <PointEditorPortal
           card={card}
-          col={activeCol}
-          x={xFor(activeCol)}
+          col={active.col}
+          anchorX={active.x}
+          anchorY={active.y}
           actions={actions}
-          onClose={() => setActiveCol(null)}
+          onClose={() => setActive(null)}
         />
       )}
     </div>
   );
 }
 
-function PointEditor({
+function PointEditorPortal({
   card,
   col,
-  x,
+  anchorX,
+  anchorY,
   actions,
   onClose,
 }: {
   card: MapCard;
   col: number;
-  x: number;
+  anchorX: number;
+  anchorY: number;
   actions: MapActions;
   onClose: () => void;
 }) {
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+  React.useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!mounted) return null;
   const point = (card.points ?? []).find((p) => p.col === col);
   const series = card.series ?? [];
   if (!point) return null;
-  return (
-    <div
-      data-no-drag
-      onPointerDown={(e) => e.stopPropagation()}
-      className="border-separator2 bg-bg2 absolute z-20 flex w-max flex-col gap-1 rounded-md border p-1.5 shadow-lg"
-      style={{ left: x, top: -4, transform: 'translate(-50%, -100%)' }}
-    >
-      <div className="text-fg3 px-0.5 text-[9px] font-mono uppercase tracking-wide">t{col}</div>
-      {series.map((s) => (
-        <label key={s.id} className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full" style={{ background: COLOR_HEX[s.color] }} />
-          <input
-            type="number"
-            value={point.values[s.id] ?? 0}
-            onChange={(e) => actions.setPointValue(card.id, col, s.id, Number(e.target.value) || 0)}
-            className="border-separator1 bg-bg1 text-fg0 h-5 w-14 rounded border px-1 text-[10px] outline-none"
-          />
-        </label>
-      ))}
-      <button
-        type="button"
-        onClick={onClose}
-        className="text-fg3 hover:text-fg1 mt-0.5 text-[9px]"
+
+  return createPortal(
+    <div className="fixed inset-0 z-[60]" onPointerDown={onClose}>
+      <div
+        data-no-drag
+        onPointerDown={(e) => e.stopPropagation()}
+        className="border-separator2 bg-bg2 absolute flex w-max flex-col gap-1 rounded-md border p-1.5 shadow-lg"
+        style={{ left: anchorX, top: anchorY - 8, transform: 'translate(-50%, -100%)' }}
       >
-        done
-      </button>
-    </div>
+        <div className="text-fg3 px-0.5 font-mono text-[9px] uppercase tracking-wide">
+          t{card.startCol + col}
+        </div>
+        {series.map((s) => (
+          <label key={s.id} className="flex items-center gap-1">
+            <span className="h-2 w-2 rounded-full" style={{ background: COLOR_HEX[s.color] }} />
+            <input
+              type="number"
+              autoFocus={s.id === series[0]?.id}
+              value={point.values[s.id] ?? 0}
+              onChange={(e) => actions.setPointValue(card.id, col, s.id, Number(e.target.value) || 0)}
+              className="border-separator1 bg-bg1 text-fg0 h-6 w-16 rounded border px-1 text-xs outline-none"
+            />
+          </label>
+        ))}
+        <button type="button" onClick={onClose} className="text-fg3 hover:text-fg1 mt-0.5 text-[9px]">
+          done
+        </button>
+      </div>
+    </div>,
+    document.body,
   );
 }
