@@ -100,6 +100,17 @@ describe('colors: computeTableColors', () => {
     expect(colors[0]![0]!.text).toMatch(/^oklch\(/);
   });
 
+  it('uses light text on the dark top rows and dark text on light rows (contrast)', () => {
+    const rows = Array.from({ length: 6 }, () => [{}, {}]);
+    const t = tableFrom(rows);
+    const colors = computeTableColors(t);
+    const textL = (s: string) => parseFloat(s.replace('oklch(', '').split(' ')[0]!);
+    // top row fill is darkest → text should be light (high L)
+    expect(textL(colors[0]![0]!.text)).toBeGreaterThan(0.9);
+    // bottom row fill is lightest → text should be dark (low L)
+    expect(textL(colors[5]![0]!.text)).toBeLessThan(0.5);
+  });
+
   it('cells in the same column share a hue but differ in lightness by row', () => {
     const t = tableFrom([[{}, {}], [{}, {}], [{}, {}]]);
     const colors = computeTableColors(t);

@@ -51,8 +51,13 @@ const L_MAX = 0.95; // lightest cap
 const C_FILL = 0.06;
 const BORDER_DL = 0.1;
 const C_BORDER = 0.08;
-const L_TEXT = 0.4;
-const C_TEXT = 0.11;
+// Text adapts to the fill lightness so it always stays readable: dark, saturated
+// text on light fills; near-white text on the darker top rows.
+const TEXT_FLIP_L = 0.7; // fills darker than this get light text
+const L_TEXT_DARK = 0.32;
+const C_TEXT_DARK = 0.12;
+const L_TEXT_LIGHT = 0.98;
+const C_TEXT_LIGHT = 0.03;
 
 export interface CellColor {
   fill: string;
@@ -74,6 +79,13 @@ export function oklch(l: number, c: number, h: number): string {
  */
 export function rowLightness(rowIndex: number, _rowCount?: number): number {
   return Math.min(L_MAX, L_TOP + rowIndex * L_STEP);
+}
+
+/** A readable text color for a given fill lightness + hue (auto light/dark). */
+export function textColorFor(fillL: number, hue: number): string {
+  return fillL < TEXT_FLIP_L
+    ? oklch(L_TEXT_LIGHT, C_TEXT_LIGHT, hue)
+    : oklch(L_TEXT_DARK, C_TEXT_DARK, hue);
 }
 
 // ---------------------------------------------------------------------------
@@ -166,7 +178,7 @@ export function computeTableColors(table: MapTable): CellColor[][] {
       return {
         fill: oklch(L, C_FILL, hue),
         border: oklch(L - BORDER_DL, C_BORDER, hue),
-        text: oklch(L_TEXT, C_TEXT, hue),
+        text: textColorFor(L, hue),
         isHeader,
       };
     });
