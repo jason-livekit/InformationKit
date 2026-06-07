@@ -1,10 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import {
-  rowLightness,
   columnHueGroups,
   computeTableColors,
   cascadeHue,
-  HUE_ANGLES,
+  fillShadeForRow,
+  colorHex,
+  COLOR_NAMES,
+  PALETTE,
 } from '@/components/map/colors';
 import type { MapTable } from '@/lib/repo/schemas';
 
@@ -31,45 +33,56 @@ function tableFrom(rows: Array<Array<{ span?: number; hue?: number | null }>>): 
   };
 }
 
-describe('colors: row lightness', () => {
-  it('anchors the top row at the darkest shade', () => {
-    expect(rowLightness(0, 1)).toBeLessThan(0.7);
-  });
-  it('steps dark (top) to light (bottom) in clearly-visible jumps', () => {
-    const top = rowLightness(0, 8);
-    const next = rowLightness(1, 8);
-    expect(top).toBeLessThan(next);
-    expect(next - top).toBeGreaterThan(0.05); // noticeable jump, not subtle
-  });
-  it('caps at the lightest shade so deep rows stay equally light', () => {
-    const deep = rowLightness(20, 30);
-    const deeper = rowLightness(25, 30);
-    expect(deep).toBe(deeper);
-    expect(deep).toBeLessThanOrEqual(0.95);
+function relLum(hex: string): number {
+  const r = parseInt(hex.slice(1, 3), 16) / 255;
+  const g = parseInt(hex.slice(3, 5), 16) / 255;
+  const b = parseInt(hex.slice(5, 7), 16) / 255;
+  const lin = (c: number) => (c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+  return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+}
+
+describe('colors: row shade', () => {
+  it('uses the darkest shade for the top row and steps lighter, capped', () => {
+    expect(fillShadeForRow(0)).toBe(500);
+    expect(fillShadeForRow(1)).toBe(400);
+    expect(fillShadeForRow(2)).toBe(300);
+    // deep rows cap at the lightest shade
+    expect(fillShadeForRow(10)).toBe(100);
+    expect(fillShadeForRow(20)).toBe(100);
   });
 });
 
-describe('colors: column hue groups', () => {
-  it('gives distinct ROYGBIV hues to independent columns', () => {
+describe('colors: named palette', () => {
+  it('exposes vivid ramps for every color name', () => {
+    COLOR_NAMES.forEach((name) => {
+      expect(PALETTE[name][500]).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    });
+  });
+  it('colorHex wraps the color index', () => {
+    expect(colorHex(0, 400)).toBe(PALETTE.red[400]);
+    expect(colorHex(COLOR_NAMES.length, 400)).toBe(PALETTE.red[400]); // wraps
+  });
+});
+
+describe('colors: column groups', () => {
+  it('gives distinct ROYGBIV colors to independent columns', () => {
     const t = tableFrom([[{}, {}, {}]]);
     const g = columnHueGroups(t);
-    expect(g.hueOf[0]).toBe(HUE_ANGLES[0]);
-    expect(g.hueOf[1]).toBe(HUE_ANGLES[1]);
-    expect(g.hueOf[2]).toBe(HUE_ANGLES[2]);
+    expect(g.colorOf[0]).toBe(0);
+    expect(g.colorOf[1]).toBe(1);
+    expect(g.colorOf[2]).toBe(2);
   });
 
-  it('a merged cell cascades one hue across the columns it spans', () => {
-    // Row 0: a single cell spanning all 3 columns -> all share the leftmost hue.
+  it('a merged cell cascades one color across the columns it spans', () => {
     const t = tableFrom([[{ span: 3 }], [{}, {}, {}]]);
     const g = columnHueGroups(t);
     expect(g.rootOf[0]).toBe(g.rootOf[1]);
     expect(g.rootOf[1]).toBe(g.rootOf[2]);
-    expect(g.hueOf[0]).toBe(HUE_ANGLES[0]);
-    expect(g.hueOf[2]).toBe(HUE_ANGLES[0]);
+    expect(g.colorOf[0]).toBe(0);
+    expect(g.colorOf[2]).toBe(0);
   });
 
   it('partially overlapping merged cells across rows join into one group', () => {
-    // 4 columns. Row 0 merges cols 0-1, row 1 merges cols 1-2 -> 0,1,2 one group; 3 alone.
     const t = tableFrom([
       [{ span: 2 }, {}, {}],
       [{}, { span: 2 }, {}],
@@ -80,55 +93,54 @@ describe('colors: column hue groups', () => {
     expect(g.rootOf[3]).not.toBe(g.rootOf[0]);
   });
 
-  it('a per-cell hue override wins for its whole group', () => {
-    const t = tableFrom([[{ span: 2, hue: 200 }, {}]]);
+  it('a per-cell color override wins for its whole group', () => {
+    const t = tableFrom([[{ span: 2, hue: 8 }, {}]]);
     const g = columnHueGroups(t);
-    expect(g.hueOf[0]).toBe(200);
-    expect(g.hueOf[1]).toBe(200);
+    expect(g.colorOf[0]).toBe(8);
+    expect(g.colorOf[1]).toBe(8);
   });
 });
 
 describe('colors: computeTableColors', () => {
-  it('emits oklch strings and flags header rows', () => {
+  it('emits hex colors from the palette and flags header rows', () => {
     const t = tableFrom([[{}, {}], [{}, {}]]);
     t.headerRows = 1;
     const colors = computeTableColors(t);
     expect(colors[0]![0]!.isHeader).toBe(true);
     expect(colors[1]![0]!.isHeader).toBe(false);
-    expect(colors[0]![0]!.fill).toMatch(/^oklch\(/);
-    expect(colors[0]![0]!.border).toMatch(/^oklch\(/);
-    expect(colors[0]![0]!.text).toMatch(/^oklch\(/);
+    expect(colors[0]![0]!.fill).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    // top row uses shade 500, second row shade 400
+    expect(colors[0]![0]!.fill).toBe(PALETTE.red[500]);
+    expect(colors[1]![0]!.fill).toBe(PALETTE.red[400]);
   });
 
-  it('uses light text on the dark top rows and dark text on light rows (contrast)', () => {
-    const rows = Array.from({ length: 6 }, () => [{}, {}]);
+  it('keeps readable contrast: text is light on dark fills, dark on light fills', () => {
+    const rows = Array.from({ length: 5 }, () => [{}]);
     const t = tableFrom(rows);
     const colors = computeTableColors(t);
-    const textL = (s: string) => parseFloat(s.replace('oklch(', '').split(' ')[0]!);
-    // top row fill is darkest → text should be light (high L)
-    expect(textL(colors[0]![0]!.text)).toBeGreaterThan(0.9);
-    // bottom row fill is lightest → text should be dark (low L)
-    expect(textL(colors[5]![0]!.text)).toBeLessThan(0.5);
+    colors.forEach((row) => {
+      const { fill, text } = row[0]!;
+      expect(Math.abs(relLum(fill) - relLum(text))).toBeGreaterThan(0.25);
+    });
   });
 
-  it('cells in the same column share a hue but differ in lightness by row', () => {
+  it('cells in the same column share a color but differ in shade by row', () => {
     const t = tableFrom([[{}, {}], [{}, {}], [{}, {}]]);
     const colors = computeTableColors(t);
-    // same column -> same hue component in the oklch string
-    const hue = (s: string) => s.split(' ')[2];
-    expect(hue(colors[0]![0]!.fill)).toBe(hue(colors[2]![0]!.fill));
-    // different rows -> different lightness
-    expect(colors[0]![0]!.fill).not.toBe(colors[2]![0]!.fill);
+    // same column 0 → red ramp on every row, but different shades
+    expect(colors[0]![0]!.fill).toBe(PALETTE.red[500]);
+    expect(colors[1]![0]!.fill).toBe(PALETTE.red[400]);
+    expect(colors[2]![0]!.fill).toBe(PALETTE.red[300]);
   });
 });
 
 describe('colors: cascadeHue', () => {
-  it('writes a hue to every cell of the target column group', () => {
+  it('writes a color index to every cell of the target column group', () => {
     const t = tableFrom([[{ span: 2 }, {}], [{}, {}, {}]]);
-    const out = cascadeHue(t, 1, 0, 321); // column 0 belongs to the merged group {0,1}
-    expect(out.rows[0]!.cells[0]!.hue).toBe(321); // the wide cell (cols 0-1)
-    expect(out.rows[1]!.cells[0]!.hue).toBe(321);
-    expect(out.rows[1]!.cells[1]!.hue).toBe(321);
+    const out = cascadeHue(t, 1, 0, 9); // column 0 belongs to the merged group {0,1}
+    expect(out.rows[0]!.cells[0]!.hue).toBe(9);
+    expect(out.rows[1]!.cells[0]!.hue).toBe(9);
+    expect(out.rows[1]!.cells[1]!.hue).toBe(9);
     expect(out.rows[1]!.cells[2]!.hue).toBeNull(); // column 2 untouched
   });
 });

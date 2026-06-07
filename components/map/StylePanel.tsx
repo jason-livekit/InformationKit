@@ -5,7 +5,7 @@ import { cn } from '@/lib/bytes/utils';
 import type { MapTextSize } from '@/lib/repo/schemas';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/bytes/Popover';
 import { TrashCanIcon } from '@/icons/react';
-import { HUE_ANGLES, oklch } from './colors';
+import { COLOR_NAMES, colorHex } from './colors';
 import { deleteColumn, deleteRow } from './grid';
 import { useMap, useMapApi, type Selection } from './useMapStore';
 
@@ -120,7 +120,7 @@ export function StylePanel() {
           >
             <span
               className="border-separator2 h-4 w-4 rounded-full border"
-              style={{ background: oklch(0.85, 0.06, 60) }}
+              style={{ background: colorHex(0, 400) }}
             />
             <span className="text-fg3 text-[10px]">▾</span>
           </button>
@@ -135,19 +135,19 @@ export function StylePanel() {
             >
               A
             </button>
-            {HUE_ANGLES.map((h) => (
+            {COLOR_NAMES.map((name, i) => (
               <button
-                key={h}
+                key={name}
                 type="button"
-                onClick={() => api.getState().applyHue(h)}
-                title={`Hue ${h}`}
+                onClick={() => api.getState().applyHue(i)}
+                title={name}
                 className="border-separator2 h-6 w-6 rounded-full border transition-transform hover:scale-110"
-                style={{ background: oklch(0.78, 0.13, h) }}
+                style={{ background: colorHex(i, 400) }}
               />
             ))}
           </div>
           <p className="text-fg4 mt-2 text-[10px]">
-            Lightness stays automatic (dark top → light bottom). Picking a hue cascades to aligned
+            Shade stays automatic (dark top → light bottom). Picking a color cascades to aligned
             cells.
           </p>
         </PopoverContent>
