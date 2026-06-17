@@ -8,14 +8,14 @@ import { ArrowLeftIcon, ArrowUpRightIcon } from '@/icons/react';
 import { StudyTabs } from '@/components/study/study-tabs';
 import { SetupTab } from '@/components/study/setup-tab';
 import { CaptureTab } from '@/components/study/capture-tab';
-import { AnalysisTab } from '@/components/study/analysis-tab';
+import { ResultsTab } from '@/components/study/results-tab';
 import { StudyStatusSwitcher } from '@/components/study/study-status-switcher';
 import { DuplicateStudyButton } from '@/components/study/duplicate-study-button';
 
 export const dynamic = 'force-dynamic';
 
-type Tab = 'setup' | 'capture' | 'analysis';
-const VALID_TABS: Tab[] = ['setup', 'capture', 'analysis'];
+type Tab = 'setup' | 'capture' | 'results';
+const VALID_TABS: Tab[] = ['setup', 'capture', 'results'];
 
 export default async function StudyPage({
   params,
@@ -27,7 +27,9 @@ export default async function StudyPage({
   const user = await requireSessionUser();
   const { studyId } = await params;
   const sp = await searchParams;
-  const tab: Tab = (VALID_TABS as string[]).includes(sp.tab ?? '') ? (sp.tab as Tab) : 'setup';
+  // `analysis` was the former name of the `results` tab; keep old links working.
+  const requestedTab = sp.tab === 'analysis' ? 'results' : (sp.tab ?? '');
+  const tab: Tab = (VALID_TABS as string[]).includes(requestedTab) ? (requestedTab as Tab) : 'setup';
 
   let study, project;
   try {
@@ -37,7 +39,7 @@ export default async function StudyPage({
   }
 
   const submissionsCount = await countSubmissions(study.id);
-  const submissions = tab === 'analysis' ? await listSubmissions(study.id) : [];
+  const submissions = tab === 'results' ? await listSubmissions(study.id) : [];
 
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5 px-6 py-8">
@@ -77,13 +79,7 @@ export default async function StudyPage({
         {tab === 'capture' && (
           <CaptureTab study={study} submissionsCount={submissionsCount} />
         )}
-        {tab === 'analysis' && (
-          <AnalysisTab
-            study={study}
-            submissions={submissions}
-            submissionsCount={submissionsCount}
-          />
-        )}
+        {tab === 'results' && <ResultsTab study={study} submissions={submissions} />}
       </div>
     </div>
   );
