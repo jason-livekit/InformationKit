@@ -28,6 +28,7 @@ const UpdateInput = z.object({
   sortType: SortTypeSchema.optional(),
   randomizeCards: z.boolean().optional(),
   standardization: StandardizationSchema.optional(),
+  excludedSubmissionIds: z.array(z.string()).optional(),
 });
 
 function handleErr(e: unknown) {

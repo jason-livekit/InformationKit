@@ -10,15 +10,15 @@ import {
   renameCategory,
 } from '@/lib/card-sort/standardize';
 import { AnalysisSubtabs } from '@/components/card-sort/analysis/analysis-subtabs';
-import { Toaster, toast } from '@/components/bytes/Toaster';
+import { toast } from '@/components/bytes/Toaster';
 
 interface AnalysisTabProps {
   study: Study;
+  /** Submissions included in the results (excluded participants are filtered out upstream). */
   submissions: Submission[];
-  submissionsCount: number;
 }
 
-export function AnalysisTab({ study, submissions, submissionsCount }: AnalysisTabProps) {
+export function AnalysisTab({ study, submissions }: AnalysisTabProps) {
   const [saving, setSaving] = React.useState(false);
   const [standardization, setStandardization] = React.useState<Standardization>(() =>
     getStandardization(study.standardization),
@@ -56,22 +56,12 @@ export function AnalysisTab({ study, submissions, submissionsCount }: AnalysisTa
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      <Toaster position="top-center" />
-      <div className="flex flex-col gap-0.5">
-        <h2 className="text-fg0 text-sm font-semibold">Results</h2>
-        <p className="text-fg3 max-w-xl text-xs">
-          {submissionsCount} submission{submissionsCount === 1 ? '' : 's'} captured.
-        </p>
-      </div>
-
-      <AnalysisSubtabs
-        model={model}
-        busy={saving}
-        onStandardize={(labels, name) => persist(mergeLabels(standardization, labels, name))}
-        onUnstandardize={(ids) => persist(removeCategories(standardization, ids))}
-        onRename={(id, name) => persist(renameCategory(standardization, id, name))}
-      />
-    </div>
+    <AnalysisSubtabs
+      model={model}
+      busy={saving}
+      onStandardize={(labels, name) => persist(mergeLabels(standardization, labels, name))}
+      onUnstandardize={(ids) => persist(removeCategories(standardization, ids))}
+      onRename={(id, name) => persist(renameCategory(standardization, id, name))}
+    />
   );
 }

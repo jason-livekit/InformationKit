@@ -100,6 +100,13 @@ export const StudySchema = z.object({
   randomizeCards: z.boolean().default(false),
   /** Analysis-time merging of participant categories. Absent until first edited. */
   standardization: StandardizationSchema.optional(),
+  /**
+   * Submission ids the author has excluded from the results. Excluded submissions
+   * still appear in the Participants list (flagged as excluded) but are left out of
+   * every analysis view, count, and export. Defaults to none so existing studies
+   * keep including every submission.
+   */
+  excludedSubmissionIds: z.array(z.string()).default([]),
   createdAt: z.number(),
   updatedAt: z.number(),
 });

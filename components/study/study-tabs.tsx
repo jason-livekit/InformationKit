@@ -7,7 +7,7 @@ import { cn } from '@/lib/bytes/utils';
 
 interface StudyTabsProps {
   studyId: string;
-  active: 'setup' | 'capture' | 'analysis';
+  active: 'setup' | 'capture' | 'results';
   submissionsCount: number;
 }
 
@@ -20,7 +20,7 @@ export function StudyTabs({ studyId, active, submissionsCount }: StudyTabsProps)
         [
           { key: 'setup', label: 'Setup' },
           { key: 'capture', label: 'Capture' },
-          { key: 'analysis', label: 'Analysis', meta: submissionsCount > 0 ? String(submissionsCount) : null },
+          { key: 'results', label: 'Results', meta: submissionsCount > 0 ? String(submissionsCount) : null },
         ] as const
       ).map((t) => {
         const isActive = active === t.key;

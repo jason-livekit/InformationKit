@@ -113,6 +113,7 @@ export interface UpdateStudyInput {
   sortType?: SortType;
   randomizeCards?: boolean;
   standardization?: Standardization;
+  excludedSubmissionIds?: string[];
 }
 
 export async function updateStudy(

@@ -5,5 +5,5 @@ export const dynamic = 'force-dynamic';
 
 export default async function LegacyResultsPage() {
   await ensureSeed();
-  redirect(`/studies/${DEMO_STUDY_ID}?tab=analysis`);
+  redirect(`/studies/${DEMO_STUDY_ID}?tab=results`);
 }
