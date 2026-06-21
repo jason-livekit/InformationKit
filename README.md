@@ -13,14 +13,46 @@ Built on [Next.js](https://nextjs.org), [Auth.js v5](https://authjs.dev) (magic-
 ```
 User (Google SSO)
   └─ Project
-       └─ Study  (status: draft | open | closed)
-            ├─ Setup     ← author cards + predefined groups
-            ├─ Capture   ← share link + submission counts
-            └─ Analysis  ← aggregated dashboard
+       ├─ Study  (status: draft | open | closed)
+       │    ├─ Setup     ← author cards + predefined groups
+       │    ├─ Capture   ← share link + submission counts
+       │    └─ Analysis  ← aggregated dashboard
+       └─ Map    (journey map; published: true | false)
+            └─ Page
+                 └─ Table  ← markdown cells, rows, merged columns
 ```
 
-Anyone with a study's share link can take the sort without an account. Owners can also click
-**Preview** to try the sort themselves — preview submissions are not recorded.
+A project holds **Studies** (card sorts) and **Maps** (journey maps). Anyone with a study's
+share link can take the sort without an account. Owners can also click **Preview** to try the
+sort themselves — preview submissions are not recorded.
+
+## Maps — journey mapping
+
+A **Map** is a Figma-like, zoomable journey-mapping document. Each map has pages; each page
+hosts one markdown **table** on an infinite canvas.
+
+- **Inline markdown** — click the canvas and type `| Cell 1 | Cell 2 |`. Typing `|` commits a
+  cell and opens the next; *leading* pipes on an empty cell declare its width up front (`||`
+  before any text = a 2-column cell, Excel-style merge). `Enter` on the trailing empty cell
+  opens a new row; `---` turns the row above into a header. Tab /
+  arrows navigate; Backspace / Delete at a cell edge shrink merges or delete cells/rows. The
+  full rule set lives in the pure, unit-tested engine `components/map/grid.ts`.
+- **OKLCH auto-coloring** (`components/map/colors.ts`) — rows step from dark (top) to light
+  (bottom); columns get ROYGBIV hues from the design palette via a union-find so merged cells
+  cascade their hue to vertically aligned cells. A per-cell hue override (from the style panel)
+  wins and cascades to its whole group. Header rows keep `bg-bg2`.
+- **Google-Maps-style zoom** — pinch / ⌘-scroll zooms (column widths scale, **row heights and
+  text stay constant**); two-finger scroll pans. Zooming out reveals fewer rows (top-first);
+  zooming in reveals more. A faint ⋯ pill steps in the next row. The view rubber-bands to keep
+  the table centered per axis until it exceeds the viewport, then frees panning.
+- **FigJam-style chrome** — a floating style panel (hue picker, bold/italic/strike, text size,
+  sans/mono), hover add-row/column buttons, drag handles that select rows/columns, divider
+  resize cursors, and a `?` / `⌘?` shortcuts popover.
+- **Pages + find** — a Figma-like left sidebar to add/rename/reorder pages and find-on-page that
+  auto-zooms to a match.
+- **Edit / Preview / Public** — the editor has top-right **Preview** and **Share** buttons.
+  Preview is a read-only formatted view with a **Publish** toggle; published maps are viewable
+  anonymously at `/m/<shareSlug>`.
 
 ## Run locally
 
@@ -31,8 +63,9 @@ pnpm dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-No credentials required to start. The dashboard / project / study editor are behind sign-in;
-the demo study at `/share/demo-sessions-ui` is public.
+No credentials required to start. The dashboard / project / study & map editors are behind
+sign-in; the demo study at `/share/demo-sessions-ui` and the demo map at `/m/demo-journey-map`
+are public.
 
 ### Magic-link sign-in
 
@@ -95,18 +128,21 @@ between cases (`__resetMemoryStoreForTests`), so tests are fast and isolated.
 - `components/card-sort/` — the parameterized `<CardSort>` component, the not-useful divider,
   group panels, results dashboard.
 - `components/study/` — study tabs, status switcher, Setup/Capture/Analysis tab contents.
+- `components/map/` — journey-map engines (`grid.ts`, `colors.ts`) and editor (store, canvas,
+  cells, style panel, pages sidebar, viewer).
 - `components/auth/` — sign-in button + user menu.
-- `app/(app)/` — authenticated app: dashboard, projects, studies.
-- `app/share/` — anonymous participant flow.
-- `app/preview/` — owner-only preview flow.
-- `app/api/` — REST API for auth + projects + studies + submissions.
+- `app/(app)/` — authenticated app: dashboard, projects, studies, maps.
+- `app/share/` — anonymous participant flow (studies).
+- `app/m/` — anonymous public map view (published maps).
+- `app/preview/` — owner-only study preview flow.
+- `app/api/` — REST API for auth + projects + studies + maps + submissions.
 
 ## Demo study
 
 On first server boot a seed migration creates a public **Demo project** + study (the same
-Sessions UI cards the original prototype used), and migrates any legacy submissions from the
-old global list into the demo study. The flag `migration:done:v1` in the KV makes this
-idempotent.
+Sessions UI cards the original prototype used) and a public **demo journey map**
+(`/m/demo-journey-map`), and migrates any legacy submissions from the old global list into the
+demo study. The flag `migration:done:v3` in the KV makes this idempotent.
 
 You can reset just the demo study's submissions from its Analysis tab (sign in first), or wipe
 the whole KV from your Upstash dashboard.

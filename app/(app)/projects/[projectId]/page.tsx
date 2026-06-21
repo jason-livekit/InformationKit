@@ -2,16 +2,18 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { loadProjectAccess, requireSessionUser } from '@/lib/repo/access';
 import { listStudiesByProject } from '@/lib/repo/studies';
+import { listMapsByProject } from '@/lib/repo/maps';
 import { countSubmissions } from '@/lib/repo/submissions';
 import { listProjectMembers } from '@/lib/repo/members';
 import { listInvitesByProject } from '@/lib/repo/invites';
 import { getUserById } from '@/lib/repo/users';
 import { Button } from '@/components/bytes/Button';
 import { Badge } from '@/components/bytes/Badge';
-import { ArrowLeftIcon, CirclePlusIcon } from '@/icons/react';
+import { ArrowLeftIcon, CirclePlusIcon, MapIcon } from '@/icons/react';
 import { ProjectHeader } from './project-header';
 import { MembersPanel, type MemberRow } from './members-panel';
 import { StudyRowActions } from './study-row-actions';
+import { MapRowActions } from './map-row-actions';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +38,7 @@ export default async function ProjectPage({
       submissions: await countSubmissions(s.id),
     })),
   );
+  const maps = await listMapsByProject(project.id);
 
   const ownerUser = await getUserById(project.ownerId);
   const members = await listProjectMembers(project.id);
@@ -56,58 +59,119 @@ export default async function ProjectPage({
           </Link>
           <ProjectHeader project={project} />
         </div>
-        <Link href={`/projects/${project.id}/studies/new`}>
-          <Button variant="primary" size="sm" leftIcon={<CirclePlusIcon />}>
-            New study
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href={`/projects/${project.id}/maps/new`}>
+            <Button variant="secondary" size="sm" leftIcon={<MapIcon />}>
+              New map
+            </Button>
+          </Link>
+          <Link href={`/projects/${project.id}/studies/new`}>
+            <Button variant="primary" size="sm" leftIcon={<CirclePlusIcon />}>
+              New study
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {studyRows.length === 0 ? (
-        <EmptyStudies projectId={project.id} />
-      ) : (
-        <div className="border-separator1 bg-bg1 overflow-hidden rounded-lg border">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-separator1 text-fg3 font-mono text-[10px] uppercase tracking-wider [&_th]:border-b [&_th]:px-4 [&_th]:py-2.5">
-                <th>Study</th>
-                <th>Status</th>
-                <th>Submissions</th>
-                <th>Last updated</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody className="divide-separator1 divide-y">
-              {studyRows.map(({ study, submissions }) => (
-                <tr key={study.id} className="hover:bg-bg2 [&_td]:px-4 [&_td]:py-2.5">
-                  <td>
-                    <Link href={`/studies/${study.id}`} className="text-fg0 font-semibold hover:underline">
-                      {study.name}
-                    </Link>
-                  </td>
-                  <td>
-                    <StatusBadge status={study.status} />
-                  </td>
-                  <td className="text-fg2 tabular-nums">{submissions}</td>
-                  <td className="text-fg3 font-mono text-xs">
-                    {new Date(study.updatedAt).toLocaleString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                      hour: 'numeric',
-                      minute: '2-digit',
-                    })}
-                  </td>
-                  <td className="text-right">
-                    <div className="flex justify-end">
-                      <StudyRowActions studyId={study.id} />
-                    </div>
-                  </td>
+      <section className="flex flex-col gap-2">
+        <h2 className="text-fg2 text-xs font-semibold uppercase tracking-wider">Studies</h2>
+        {studyRows.length === 0 ? (
+          <EmptyStudies projectId={project.id} />
+        ) : (
+          <div className="border-separator1 bg-bg1 overflow-hidden rounded-lg border">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-separator1 text-fg3 font-mono text-[10px] uppercase tracking-wider [&_th]:border-b [&_th]:px-4 [&_th]:py-2.5">
+                  <th>Study</th>
+                  <th>Status</th>
+                  <th>Submissions</th>
+                  <th>Last updated</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+              </thead>
+              <tbody className="divide-separator1 divide-y">
+                {studyRows.map(({ study, submissions }) => (
+                  <tr key={study.id} className="hover:bg-bg2 [&_td]:px-4 [&_td]:py-2.5">
+                    <td>
+                      <Link href={`/studies/${study.id}`} className="text-fg0 font-semibold hover:underline">
+                        {study.name}
+                      </Link>
+                    </td>
+                    <td>
+                      <StatusBadge status={study.status} />
+                    </td>
+                    <td className="text-fg2 tabular-nums">{submissions}</td>
+                    <td className="text-fg3 font-mono text-xs">
+                      {new Date(study.updatedAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end">
+                        <StudyRowActions studyId={study.id} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="text-fg2 text-xs font-semibold uppercase tracking-wider">Maps</h2>
+        {maps.length === 0 ? (
+          <EmptyMaps projectId={project.id} />
+        ) : (
+          <div className="border-separator1 bg-bg1 overflow-hidden rounded-lg border">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-separator1 text-fg3 font-mono text-[10px] uppercase tracking-wider [&_th]:border-b [&_th]:px-4 [&_th]:py-2.5">
+                  <th>Map</th>
+                  <th>Pages</th>
+                  <th>Visibility</th>
+                  <th>Last updated</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody className="divide-separator1 divide-y">
+                {maps.map((map) => (
+                  <tr key={map.id} className="hover:bg-bg2 [&_td]:px-4 [&_td]:py-2.5">
+                    <td>
+                      <Link href={`/maps/${map.id}`} className="text-fg0 font-semibold hover:underline">
+                        {map.name}
+                      </Link>
+                    </td>
+                    <td className="text-fg2 tabular-nums">{map.pages.length}</td>
+                    <td>
+                      <Badge variant={map.published ? 'success' : 'muted'} size="medium">
+                        {map.published ? 'public' : 'private'}
+                      </Badge>
+                    </td>
+                    <td className="text-fg3 font-mono text-xs">
+                      {new Date(map.updatedAt).toLocaleString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                      })}
+                    </td>
+                    <td className="text-right">
+                      <div className="flex justify-end">
+                        <MapRowActions mapId={map.id} />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
 
       <MembersPanel
         projectId={project.id}
@@ -144,6 +208,23 @@ function EmptyStudies({ projectId }: { projectId: string }) {
       <Link href={`/projects/${projectId}/studies/new`}>
         <Button variant="primary" size="sm" leftIcon={<CirclePlusIcon />}>
           Create your first study
+        </Button>
+      </Link>
+    </div>
+  );
+}
+
+function EmptyMaps({ projectId }: { projectId: string }) {
+  return (
+    <div className="border-separator1 bg-bg1 flex min-h-44 flex-col items-center justify-center gap-3 rounded-lg border border-dashed p-6 text-center">
+      <h3 className="text-fg0 text-sm font-semibold">No maps yet</h3>
+      <p className="text-fg3 max-w-sm text-xs">
+        Maps are zoomable, markdown-table journey maps. Type a table, color it automatically, and
+        zoom in for more detail.
+      </p>
+      <Link href={`/projects/${projectId}/maps/new`}>
+        <Button variant="secondary" size="sm" leftIcon={<MapIcon />}>
+          Create your first map
         </Button>
       </Link>
     </div>
