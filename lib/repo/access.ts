@@ -1,8 +1,9 @@
 import { auth } from '@/auth';
 import { getProject } from './projects';
 import { getStudy } from './studies';
+import { getMap } from './maps';
 import { getProjectMember } from './members';
-import type { Project, ProjectRole, Study, User } from './schemas';
+import type { JourneyMap, Project, ProjectRole, Study, User } from './schemas';
 
 export class UnauthorizedError extends Error {
   constructor() {
@@ -73,4 +74,15 @@ export async function loadAccessibleStudy(
   if (!study) throw new NotFoundError();
   const { project, role } = await loadProjectAccess(study.projectId, userId);
   return { study, project, role };
+}
+
+/** Map access for owners and members. Returns the map, project, and the caller's role. */
+export async function loadAccessibleMap(
+  mapId: string,
+  userId: string,
+): Promise<{ map: JourneyMap; project: Project; role: ProjectRole }> {
+  const map = await getMap(mapId);
+  if (!map) throw new NotFoundError();
+  const { project, role } = await loadProjectAccess(map.projectId, userId);
+  return { map, project, role };
 }

@@ -111,6 +111,107 @@ export const StudySchema = z.object({
   updatedAt: z.number(),
 });
 
+// --- Journey Maps -----------------------------------------------------------
+
+/** Palette tokens a map card can be colored with. `neutral` reads from the
+ *  surface tokens; the rest map to the theme-invariant raw color scales. */
+export const MapColorSchema = z.enum([
+  'neutral',
+  'blue',
+  'purple',
+  'orange',
+  'green',
+  'red',
+  'amber',
+  'teal',
+  'pink',
+  'indigo',
+]);
+
+/** A named row. Cards live in exactly one lane and never span rows. A lane's
+ *  detail level is its index in the map's `swimlanes` array (row 0 = coarsest),
+ *  which drives both zoom level-of-detail and parent/child nesting. */
+export const SwimlaneSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().default(''),
+});
+
+export const MapCardKindSchema = z.enum(['card', 'data']);
+
+export const MapVizSchema = z.enum([
+  'line',
+  'multiLine',
+  'bars',
+  'stackedBars',
+  'scatter',
+  'lineWithPoints',
+]);
+
+/** One series of a data card. Single-series visualizations use exactly one. */
+export const MapSeriesSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().default(''),
+  color: MapColorSchema.default('blue'),
+});
+
+/** A value at a grid column. `values` is keyed by series id so a single point
+ *  can hold every series' value at that time slot (needed for stacked bars and
+ *  multi-line). */
+export const MapDataPointSchema = z.object({
+  col: z.number().int().min(0),
+  values: z.record(z.string(), z.number()),
+});
+
+export const MapCardSchema = z.object({
+  id: z.string().min(1),
+  kind: MapCardKindSchema.default('card'),
+  laneId: z.string().min(1),
+  /** Left edge on the shared base grid (0-indexed time column). */
+  startCol: z.number().int().min(0),
+  /** Width in base columns. Always >= 1; a card can be arbitrarily wide. */
+  colSpan: z.number().int().min(1),
+  /** Detail level, derived from the lane index. Cards with level <= the zoom's
+   *  visible level are shown. Persisted so the value is available before the
+   *  client recomputes it. */
+  level: z.number().int().min(0).default(0),
+  /** Id of the containing card in the lane directly above, if any. Derived. */
+  parentId: z.string().nullable().default(null),
+  title: z.string().default(''),
+  color: MapColorSchema.default('neutral'),
+  // --- Presentation (all optional; sensible fallbacks applied at render). ---
+  /** Background fill treatment. `soft` is the default light tint; `solid` is a
+   *  bold filled color; `none` is transparent (outline-only). */
+  fillStyle: z.enum(['soft', 'solid', 'none']).optional(),
+  /** Outline color. Falls back to the fill color's border tint when unset. */
+  outlineColor: MapColorSchema.optional(),
+  /** Outline style. Defaults to a solid border. */
+  outlineStyle: z.enum(['solid', 'dashed', 'none']).optional(),
+  /** Relative title size. Scales the auto-fit ceiling. Defaults to medium. */
+  fontScale: z.enum(['small', 'medium', 'large']).optional(),
+  bold: z.boolean().optional(),
+  italic: z.boolean().optional(),
+  strike: z.boolean().optional(),
+  /** Horizontal text alignment. Defaults to center for cards. */
+  align: z.enum(['left', 'center', 'right']).optional(),
+  // Data-card fields (present when kind === 'data').
+  viz: MapVizSchema.optional(),
+  series: z.array(MapSeriesSchema).optional(),
+  points: z.array(MapDataPointSchema).optional(),
+});
+
+export const MapSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().default(''),
+  swimlanes: z.array(SwimlaneSchema),
+  cards: z.array(MapCardSchema),
+  /** Total width of the grid in base columns. Kept >= the rightmost card edge. */
+  columnCount: z.number().int().min(1).default(12),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+});
+
 export const SubmissionSchema = z.object({
   id: z.string().min(1),
   studyId: z.string().min(1),
@@ -143,3 +244,11 @@ export type StudyType = z.infer<typeof StudyTypeSchema>;
 export type SortType = z.infer<typeof SortTypeSchema>;
 export type Submission = z.infer<typeof SubmissionSchema>;
 export type SubmissionInput = z.infer<typeof SubmissionInputSchema>;
+export type MapColor = z.infer<typeof MapColorSchema>;
+export type Swimlane = z.infer<typeof SwimlaneSchema>;
+export type MapCardKind = z.infer<typeof MapCardKindSchema>;
+export type MapViz = z.infer<typeof MapVizSchema>;
+export type MapSeries = z.infer<typeof MapSeriesSchema>;
+export type MapDataPoint = z.infer<typeof MapDataPointSchema>;
+export type MapCard = z.infer<typeof MapCardSchema>;
+export type JourneyMap = z.infer<typeof MapSchema>;
